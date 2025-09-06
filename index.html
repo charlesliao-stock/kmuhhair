@@ -93,30 +93,33 @@
     }
   });
 
-  document.getElementById("queryForm").addEventListener("submit", async (e) => {
-    e.preventDefault();
-    const phone = e.target.phone.value;
-    const params = new URLSearchParams({ action: "query", phone });
+document.getElementById("queryForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const phone = e.target.phone.value;
 
-    try {
-      const res = await fetch(`${API_URL}?${params.toString()}`);
-      const result = await res.json();
+  const formData = new FormData();
+  formData.append("action", "query");
+  formData.append("phone", phone);
 
-      if (result.status !== "success") {
-        document.getElementById("queryResult").innerHTML = `<p>⚠️ 錯誤：${result.message}</p>`;
-      } else {
-        const entry = result.data[0]; // 顯示第一筆
-        document.getElementById("queryResult").innerHTML = `
-          <p>🔎 查詢成功！序號：<strong>${entry.id}</strong></p>
-          <p>單位：${entry.unit}<br>床號：${entry.bed}<br>性別：${entry.gender}<br>需求：${entry.requestitems}<br>備註：${entry.note}</p>
-          <button onclick="deleteRequest('${entry.id}', '${entry.phone}')">❌ 刪除需求</button>
-        `;
-      }
-    } catch (err) {
-      console.error("查詢錯誤：", err);
-      document.getElementById("queryResult").innerHTML = `<p>⚠️ 查詢失敗：${err.message}</p>`;
+  try {
+    const res = await fetch(API_URL, { method: "POST", body: formData });
+    const result = await res.json();
+
+    if (result.status !== "success") {
+      document.getElementById("queryResult").innerHTML = `<p>⚠️ 錯誤：${result.message}</p>`;
+    } else {
+      const entry = result.data[0]; // 顯示第一筆
+      document.getElementById("queryResult").innerHTML = `
+        <p>🔎 查詢成功！序號：<strong>${entry.id}</strong></p>
+        <p>單位：${entry.unit}<br>床號：${entry.bed}<br>性別：${entry.gender}<br>需求：${entry.requestitems}<br>備註：${entry.note}</p>
+        <button onclick="deleteRequest('${entry.id}', '${entry.phone}')">❌ 刪除需求</button>
+      `;
     }
-  });
+  } catch (err) {
+    console.error("查詢錯誤：", err);
+    document.getElementById("queryResult").innerHTML = `<p>⚠️ 查詢失敗：${err.message}</p>`;
+  }
+});
 
   async function deleteRequest(id, phone) {
     const formData = new FormData();
@@ -143,4 +146,5 @@
 
 </body>
 </html>
+
 
