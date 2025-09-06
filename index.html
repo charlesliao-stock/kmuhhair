@@ -102,13 +102,16 @@ document.getElementById("queryForm").addEventListener("submit", async (e) => {
   formData.append("phone", phone);
 
   try {
-    const res = await fetch(API_URL, { method: "POST", body: formData });
+    const res = await fetch(API_URL, {
+      method: "POST",
+      body: formData
+    });
     const result = await res.json();
 
     if (result.status !== "success") {
       document.getElementById("queryResult").innerHTML = `<p>⚠️ 錯誤：${result.message}</p>`;
     } else {
-      const entry = result.data[0]; // 顯示第一筆
+      const entry = result.data[0];
       document.getElementById("queryResult").innerHTML = `
         <p>🔎 查詢成功！序號：<strong>${entry.id}</strong></p>
         <p>單位：${entry.unit}<br>床號：${entry.bed}<br>性別：${entry.gender}<br>需求：${entry.requestitems}<br>備註：${entry.note}</p>
@@ -146,5 +149,6 @@ document.getElementById("queryForm").addEventListener("submit", async (e) => {
 
 </body>
 </html>
+
 
 
