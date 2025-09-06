@@ -58,7 +58,7 @@
   </div>
 
 <script>
-  const API_URL = https://script.google.com/macros/s/AKfycbyEeb68G79CKow9OuloW8C03bEZdf-ahH-WkhMmxMzKjt78HtW0K-B7xdcuaLPFLvo/exec;
+  const API_URL = "https://script.google.com/macros/s/AKfycbzyXjOaks4BYzZyt_krzjZwN0skLSEiMdGkw1C1YgFKloyt7VYGFhzU71qrI8ieS_E/exec";
 
   document.querySelectorAll(".toggle").forEach(toggle => {
     toggle.addEventListener("click", () => {
@@ -75,17 +75,17 @@
     const formData = new FormData(e.target);
     const items = [];
     document.querySelectorAll('input[name="requestItems"]:checked').forEach(cb => items.push(cb.value));
-    formData.append("requestItems", items.join(","));
+    formData.set("requestItems", items.join(","));
+    formData.append("action", "submit");
 
     try {
       const res = await fetch(API_URL, { method: "POST", body: formData });
-      const text = await res.text();
-      const result = JSON.parse(text);
+      const result = await res.json();
 
-      if (result.error) {
+      if (result.status !== "success") {
         document.getElementById("submitResult").innerHTML = `<p>⚠️ 錯誤：${result.message}</p>`;
       } else {
-        document.getElementById("submitResult").innerHTML = `<p>✅ 您的序號是 <strong>${result.request_id}</strong><br>目前尚有 <strong>${result.pending_count}</strong> 人等待服務</p>`;
+        document.getElementById("submitResult").innerHTML = `<p>✅ 已提交！您的序號是 <strong>${result.data.id}</strong></p>`;
       }
     } catch (err) {
       console.error("提交錯誤：", err);
@@ -96,18 +96,20 @@
   document.getElementById("queryForm").addEventListener("submit", async (e) => {
     e.preventDefault();
     const phone = e.target.phone.value;
-    try {
-      const res = await fetch(`${API_URL}?phone=${phone}`);
-      const text = await res.text();
-      const data = JSON.parse(text);
+    const params = new URLSearchParams({ action: "query", phone });
 
-      if (data.error) {
-        document.getElementById("queryResult").innerHTML = `<p>⚠️ 錯誤：${data.message}</p>`;
+    try {
+      const res = await fetch(`${API_URL}?${params.toString()}`);
+      const result = await res.json();
+
+      if (result.status !== "success") {
+        document.getElementById("queryResult").innerHTML = `<p>⚠️ 錯誤：${result.message}</p>`;
       } else {
+        const entry = result.data[0]; // 顯示第一筆
         document.getElementById("queryResult").innerHTML = `
-          <p>🔎 您的序號是 <strong>${data.request_id}</strong><br>目前尚有 <strong>${data.pending_count}</strong> 人等待服務</p>
-          <p>單位：${data.unit}<br>床號：${data.bed}<br>備註：${data.note}</p>
-          <button onclick="deleteRequest('${data.request_id}', '${phone}')">❌ 刪除需求</button>
+          <p>🔎 查詢成功！序號：<strong>${entry.id}</strong></p>
+          <p>單位：${entry.name}<br>床號：${entry.bed}<br>性別：${entry.gender}<br>需求：${entry.type}<br>備註：${entry.note}</p>
+          <button onclick="deleteRequest('${entry.id}', '${entry.phone}')">❌ 刪除需求</button>
         `;
       }
     } catch (err) {
@@ -116,23 +118,28 @@
     }
   });
 
-  async function deleteRequest(requestId, phone) {
+  async function deleteRequest(id, phone) {
     const formData = new FormData();
-    formData.append("request_id", requestId);
+    formData.append("action", "delete");
+    formData.append("id", id);
     formData.append("phone", phone);
+
     try {
-      const res = await fetch(API_URL, { method: "DELETE", body: formData });
-      const result = await res.text();
-      alert(result);
-      document.getElementById("queryResult").innerHTML = "";
+      const res = await fetch(API_URL, { method: "POST", body: formData });
+      const result = await res.json();
+
+      if (result.status === "success") {
+        alert("✅ 刪除成功！");
+        document.getElementById("queryResult").innerHTML = "";
+      } else {
+        alert("⚠️ 刪除失敗：" + result.message);
+      }
     } catch (err) {
       console.error("刪除錯誤：", err);
-      alert("⚠️ 刪除失敗：" + err.message);
+      alert("⚠️ 系統錯誤：" + err.message);
     }
   }
 </script>
 
 </body>
-
 </html>
-
