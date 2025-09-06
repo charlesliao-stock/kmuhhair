@@ -108,7 +108,7 @@
         const entry = result.data[0]; // 顯示第一筆
         document.getElementById("queryResult").innerHTML = `
           <p>🔎 查詢成功！序號：<strong>${entry.id}</strong></p>
-          <p>單位：${entry.name}<br>床號：${entry.bed}<br>性別：${entry.gender}<br>需求：${entry.type}<br>備註：${entry.note}</p>
+          <p>單位：${entry.unit}<br>床號：${entry.bed}<br>性別：${entry.gender}<br>需求：${entry.requestitems}<br>備註：${entry.note}</p>
           <button onclick="deleteRequest('${entry.id}', '${entry.phone}')">❌ 刪除需求</button>
         `;
       }
@@ -143,3 +143,4 @@
 
 </body>
 </html>
+
