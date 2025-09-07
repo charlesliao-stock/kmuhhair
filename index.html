@@ -2,17 +2,19 @@
 <html lang="zh-TW">
 <head>
   <meta charset="UTF-8" />
-  <title>派工需求提交</title>
+  <title>派工需求管理系統</title>
   <style>
-    body { font-family: sans-serif; padding: 20px; }
+    body { font-family: sans-serif; padding: 20px; max-width: 800px; margin: auto; }
     label { display: block; margin-top: 10px; }
     input, textarea, select { width: 100%; padding: 8px; margin-top: 5px; }
     button { margin-top: 15px; padding: 10px 20px; }
-    #result { margin-top: 20px; }
+    #result, #queryResult { margin-top: 20px; }
+    .card { border: 1px solid #ccc; padding: 10px; margin-top: 10px; background: #f9f9f9; }
+    .card input { width: calc(100% - 10px); margin-bottom: 5px; }
   </style>
 </head>
 <body>
-  <h2>派工需求提交</h2>
+  <h2>📋 派工需求提交</h2>
   <form id="requestForm">
     <label>單位：<input type="text" name="unit" required /></label>
     <label>床號：<input type="text" name="bed" required /></label>
@@ -25,34 +27,117 @@
     <label>電話：<input type="text" name="phone" required /></label>
     <label>需求：<textarea name="requestitems" required></textarea></label>
     <label>備註：<textarea name="note"></textarea></label>
-    <button type="submit">提交需求</button>
+    <button type="submit">✅ 提交需求</button>
   </form>
-
   <div id="result"></div>
 
+  <hr />
+  <h2>🔍 查詢需求</h2>
+  <form id="queryForm">
+    <label>電話或單位：<input type="text" name="keyword" required /></label>
+    <button type="submit">🔍 查詢</button>
+  </form>
+  <div id="queryResult"></div>
+
   <script>
-const scriptURL = 'https://script.google.com/macros/s/AKfycbzyXjOaks4BYzZyt_krzjZwN0skLSEiMdGkw1C1YgFKloyt7VYGFhzU71qrI8ieS_E/exec';
+    const scriptURL = 'https://script.google.com/macros/s/AKfycbzyXjOaks4BYzZyt_krzjZwN0skLSEiMdGkw1C1YgFKloyt7VYGFhzU71qrI8ieS_E/exec';
 
-document.getElementById('requestForm').addEventListener('submit', async (e) => {
-  e.preventDefault();
-  const formData = new FormData(e.target);
-  const data = Object.fromEntries(formData.entries());
-  data.id = 'REQ-' + Math.random().toString(36).substring(2, 10);
+    // 提交需求
+    document.getElementById('requestForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const formData = new FormData(e.target);
+      const data = Object.fromEntries(formData.entries());
+      data.id = 'REQ-' + Math.random().toString(36).substring(2, 10);
+      data.action = 'add';
 
-  const query = new URLSearchParams(data).toString();
-  const url = `${scriptURL}?${query}`;
+      const query = new URLSearchParams(data).toString();
+      const url = `${scriptURL}?${query}`;
 
-  try {
-    const res = await fetch(url);
-    const result = await res.json();
-    document.getElementById('result').innerText = result.message || '提交成功';
-    e.target.reset();
-  } catch (err) {
-    document.getElementById('result').innerText = '提交失敗，請稍後再試';
-    console.error(err);
-  }
-});
+      try {
+        const res = await fetch(url);
+        const result = await res.json();
+        document.getElementById('result').innerText = result.message || '提交成功';
+        e.target.reset();
+      } catch (err) {
+        document.getElementById('result').innerText = '提交失敗，請稍後再試';
+        console.error(err);
+      }
+    });
+
+    // 查詢需求
+    document.getElementById('queryForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const keyword = e.target.keyword.value.trim();
+      const url = `${scriptURL}?action=query&keyword=${encodeURIComponent(keyword)}`;
+
+      try {
+        const res = await fetch(url);
+        const result = await res.json();
+
+        if (result.data && result.data.length > 0) {
+          const html = result.data.map(item => `
+            <div class="card">
+              <strong>ID：</strong>${item.id}<br/>
+              <label>單位：<input type="text" value="${item.unit}" data-id="${item.id}" class="edit-unit" /></label>
+              <label>床號：<input type="text" value="${item.bed}" data-id="${item.id}" class="edit-bed" /></label>
+              <label>性別：<input type="text" value="${item.gender}" data-id="${item.id}" class="edit-gender" /></label>
+              <label>電話：<input type="text" value="${item.phone}" data-id="${item.id}" class="edit-phone" /></label>
+              <label>需求：<input type="text" value="${item.requestitems}" data-id="${item.id}" class="edit-requestitems" /></label>
+              <label>備註：<input type="text" value="${item.note}" data-id="${item.id}" class="edit-note" /></label>
+              <label>狀態：<input type="text" value="${item.status}" data-id="${item.id}" class="edit-status" /></label>
+              <button onclick="updateRequest('${item.id}')">✏️ 更新</button>
+              <button onclick="deleteRequest('${item.id}')">🗑️ 刪除</button>
+            </div>
+          `).join('');
+          document.getElementById('queryResult').innerHTML = html;
+        } else {
+          document.getElementById('queryResult').innerText = '查無資料';
+        }
+      } catch (err) {
+        document.getElementById('queryResult').innerText = '查詢失敗';
+        console.error(err);
+      }
+    });
+
+    // 更新需求
+    async function updateRequest(id) {
+      const fields = ['unit', 'bed', 'gender', 'phone', 'requestitems', 'note', 'status'];
+      const params = { action: 'update', id };
+
+      fields.forEach(field => {
+        const el = document.querySelector(`.edit-${field}[data-id="${id}"]`);
+        if (el) params[field] = el.value;
+      });
+
+      const query = new URLSearchParams(params).toString();
+      const url = `${scriptURL}?${query}`;
+
+      try {
+        const res = await fetch(url);
+        const result = await res.json();
+        alert(result.message || '更新成功');
+      } catch (err) {
+        alert('更新失敗');
+        console.error(err);
+      }
+    }
+
+    // 刪除需求
+    async function deleteRequest(id) {
+      if (!confirm(`確定要刪除 ID 為 ${id} 的需求嗎？`)) return;
+
+      const url = `${scriptURL}?action=delete&id=${id}`;
+
+      try {
+        const res = await fetch(url);
+        const result = await res.json();
+        alert(result.message || '刪除成功');
+        document.getElementById('queryForm').dispatchEvent(new Event('submit')); // 重新查詢
+      } catch (err) {
+        alert('刪除失敗');
+        console.error(err);
+      }
+    }
   </script>
 </body>
 </html>
-
