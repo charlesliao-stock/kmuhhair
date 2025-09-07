@@ -5,42 +5,54 @@
   <title>派工需求管理系統</title>
   <style>
     body { font-family: sans-serif; padding: 20px; max-width: 800px; margin: auto; }
+    h2 { cursor: pointer; background: #eee; padding: 10px; border-radius: 5px; }
+    .section { display: none; margin-top: 10px; }
     label { display: block; margin-top: 10px; }
     input, textarea, select { width: 100%; padding: 8px; margin-top: 5px; }
     button { margin-top: 15px; padding: 10px 20px; }
     #result, #queryResult { margin-top: 20px; }
-    .card { border: 1px solid #ccc; padding: 10px; margin-top: 10px; background: #f9f9f9; }
-    .card input { width: calc(100% - 10px); margin-bottom: 5px; }
+    table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+    th, td { border: 1px solid #ccc; padding: 8px; text-align: left; }
+    .disabled { opacity: 0.5; pointer-events: none; }
   </style>
 </head>
 <body>
-  <h2>📋 派工需求提交</h2>
-  <form id="requestForm">
-    <label>單位：<input type="text" name="unit" required /></label>
-    <label>床號：<input type="text" name="bed" required /></label>
-    <label>性別：
-      <select name="gender">
-        <option value="男">男</option>
-        <option value="女">女</option>
-      </select>
-    </label>
-    <label>電話：<input type="text" name="phone" required /></label>
-    <label>需求：<textarea name="requestitems" required></textarea></label>
-    <label>備註：<textarea name="note"></textarea></label>
-    <button type="submit">✅ 提交需求</button>
-  </form>
-  <div id="result"></div>
+  <h2 onclick="toggleSection('submitSection')">📋 派工需求提交</h2>
+  <div id="submitSection" class="section">
+    <form id="requestForm">
+      <label>單位：<input type="text" name="unit" required /></label>
+      <label>床號：<input type="text" name="bed" required /></label>
+      <label>性別：
+        <select name="gender">
+          <option value="男">男</option>
+          <option value="女">女</option>
+        </select>
+      </label>
+      <label>電話：<input type="text" name="phone" required /></label>
+      <label>需求：<textarea name="requestitems" required></textarea></label>
+      <label>備註：<textarea name="note"></textarea></label>
+      <button type="submit">✅ 提交需求</button>
+    </form>
+    <div id="result"></div>
+  </div>
 
-  <hr />
-  <h2>🔍 查詢需求</h2>
-  <form id="queryForm">
-    <label>電話或單位：<input type="text" name="keyword" required /></label>
-    <button type="submit">🔍 查詢</button>
-  </form>
-  <div id="queryResult"></div>
+  <h2 onclick="toggleSection('querySection')">🔍 查詢需求</h2>
+  <div id="querySection" class="section">
+    <form id="queryForm">
+      <label>電話（完全一致）：<input type="text" name="keyword" required /></label>
+      <button type="submit">🔍 查詢</button>
+    </form>
+    <div id="queryResult"></div>
+  </div>
 
   <script>
     const scriptURL = 'https://script.google.com/macros/s/AKfycbzyXjOaks4BYzZyt_krzjZwN0skLSEiMdGkw1C1YgFKloyt7VYGFhzU71qrI8ieS_E/exec';
+
+    function toggleSection(id) {
+      document.querySelectorAll('.section').forEach(sec => sec.style.display = 'none');
+      const section = document.getElementById(id);
+      section.style.display = section.style.display === 'none' ? 'block' : 'none';
+    }
 
     // 提交需求
     document.getElementById('requestForm').addEventListener('submit', async (e) => {
@@ -58,13 +70,14 @@
         const result = await res.json();
         document.getElementById('result').innerText = result.message || '提交成功';
         e.target.reset();
+        toggleSection('submitSection'); // 收起
       } catch (err) {
-        document.getElementById('result').innerText = '提交失敗，請稍後再試';
+        document.getElementById('result').innerText = '提交失敗';
         console.error(err);
       }
     });
 
-    // 查詢需求
+    // 查詢需求（手機號完全一致）
     document.getElementById('queryForm').addEventListener('submit', async (e) => {
       e.preventDefault();
       const keyword = e.target.keyword.value.trim();
@@ -75,20 +88,37 @@
         const result = await res.json();
 
         if (result.data && result.data.length > 0) {
-          const html = result.data.map(item => `
-            <div class="card">
-              <strong>ID：</strong>${item.id}<br/>
-              <label>單位：<input type="text" value="${item.unit}" data-id="${item.id}" class="edit-unit" /></label>
-              <label>床號：<input type="text" value="${item.bed}" data-id="${item.id}" class="edit-bed" /></label>
-              <label>性別：<input type="text" value="${item.gender}" data-id="${item.id}" class="edit-gender" /></label>
-              <label>電話：<input type="text" value="${item.phone}" data-id="${item.id}" class="edit-phone" /></label>
-              <label>需求：<input type="text" value="${item.requestitems}" data-id="${item.id}" class="edit-requestitems" /></label>
-              <label>備註：<input type="text" value="${item.note}" data-id="${item.id}" class="edit-note" /></label>
-              <label>狀態：<input type="text" value="${item.status}" data-id="${item.id}" class="edit-status" /></label>
-              <button onclick="updateRequest('${item.id}')">✏️ 更新</button>
-              <button onclick="deleteRequest('${item.id}')">🗑️ 刪除</button>
-            </div>
-          `).join('');
+          const filtered = result.data.filter(item => item.phone === keyword);
+          if (filtered.length === 0) {
+            document.getElementById('queryResult').innerText = '查無資料';
+            return;
+          }
+
+          const html = `
+            <table>
+              <tr>
+                <th>單位</th><th>床號</th><th>性別</th><th>電話</th><th>需求</th><th>備註</th><th>狀態</th><th>功能</th>
+              </tr>
+              ${filtered.map(item => {
+                const disabled = ['已完成', '已取消'].includes(item.status);
+                return `
+                  <tr>
+                    <td><input type="text" value="${item.unit}" data-id="${item.id}" class="edit-unit" ${disabled ? 'disabled' : ''}></td>
+                    <td><input type="text" value="${item.bed}" data-id="${item.id}" class="edit-bed" ${disabled ? 'disabled' : ''}></td>
+                    <td><input type="text" value="${item.gender}" data-id="${item.id}" class="edit-gender" ${disabled ? 'disabled' : ''}></td>
+                    <td><input type="text" value="${item.phone}" data-id="${item.id}" class="edit-phone" ${disabled ? 'disabled' : ''}></td>
+                    <td><input type="text" value="${item.requestitems}" data-id="${item.id}" class="edit-requestitems" ${disabled ? 'disabled' : ''}></td>
+                    <td><input type="text" value="${item.note}" data-id="${item.id}" class="edit-note" ${disabled ? 'disabled' : ''}></td>
+                    <td><input type="text" value="${item.status}" data-id="${item.id}" class="edit-status" ${disabled ? 'disabled' : ''}></td>
+                    <td>
+                      <button onclick="updateRequest('${item.id}')" ${disabled ? 'disabled' : ''}>✏️ 更新</button>
+                      <button onclick="deleteRequest('${item.id}')" ${disabled ? 'disabled' : ''}>🗑️ 刪除</button>
+                    </td>
+                  </tr>
+                `;
+              }).join('')}
+            </table>
+          `;
           document.getElementById('queryResult').innerHTML = html;
         } else {
           document.getElementById('queryResult').innerText = '查無資料';
@@ -116,6 +146,8 @@
         const res = await fetch(url);
         const result = await res.json();
         alert(result.message || '更新成功');
+        toggleSection('querySection'); // 收起
+        document.getElementById('queryResult').innerHTML = '';
       } catch (err) {
         alert('更新失敗');
         console.error(err);
@@ -132,7 +164,8 @@
         const res = await fetch(url);
         const result = await res.json();
         alert(result.message || '刪除成功');
-        document.getElementById('queryForm').dispatchEvent(new Event('submit')); // 重新查詢
+        toggleSection('querySection'); // 收起
+        document.getElementById('queryResult').innerHTML = '';
       } catch (err) {
         alert('刪除失敗');
         console.error(err);
@@ -140,4 +173,4 @@
     }
   </script>
 </body>
-</html>
+</html>  
