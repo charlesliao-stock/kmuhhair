@@ -31,30 +31,28 @@
   <div id="result"></div>
 
   <script>
-    const scriptURL = 'https://script.google.com/macros/s/AKfycbzyXjOaks4BYzZyt_krzjZwN0skLSEiMdGkw1C1YgFKloyt7VYGFhzU71qrI8ieS_E/exec';
+const scriptURL = 'https://script.google.com/macros/s/AKfycbzyXjOaks4BYzZyt_krzjZwN0skLSEiMdGkw1C1YgFKloyt7VYGFhzU71qrI8ieS_E/exec';
 
-    document.getElementById('requestForm').addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const formData = new FormData(e.target);
-      const data = Object.fromEntries(formData.entries());
+document.getElementById('requestForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const formData = new FormData(e.target);
+  const data = Object.fromEntries(formData.entries());
+  data.id = 'REQ-' + Math.random().toString(36).substring(2, 10);
 
-      // 加入隨機識別碼
-      data.id = 'REQ-' + Math.random().toString(36).substring(2, 10);
+  const query = new URLSearchParams(data).toString();
+  const url = `${scriptURL}?${query}`;
 
-      try {
-        const res = await fetch(scriptURL, {
-          method: 'POST',
-          body: JSON.stringify(data),
-          headers: { 'Content-Type': 'application/json' }
-        });
-        const result = await res.json();
-        document.getElementById('result').innerText = result.message || '提交成功';
-        e.target.reset();
-      } catch (err) {
-        document.getElementById('result').innerText = '提交失敗，請稍後再試';
-        console.error(err);
-      }
-    });
+  try {
+    const res = await fetch(url);
+    const result = await res.json();
+    document.getElementById('result').innerText = result.message || '提交成功';
+    e.target.reset();
+  } catch (err) {
+    document.getElementById('result').innerText = '提交失敗，請稍後再試';
+    console.error(err);
+  }
+});
   </script>
 </body>
 </html>
+
