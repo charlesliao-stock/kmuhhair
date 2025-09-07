@@ -2,153 +2,59 @@
 <html lang="zh-TW">
 <head>
   <meta charset="UTF-8" />
-  <title>KMUH 洗剪髮需求系統</title>
+  <title>派工需求提交</title>
   <style>
-    body { font-family: "Segoe UI", sans-serif; background: #f9f9f9; padding: 30px; max-width: 640px; margin: auto; color: #333; }
-    h2.toggle { cursor: pointer; background: #e0e0e0; padding: 12px 16px; border-radius: 8px; margin-bottom: 10px; font-size: 18px; transition: background 0.3s; }
-    h2.toggle:hover { background: #d0d0d0; }
-    .section { overflow: hidden; max-height: 0; transition: max-height 0.5s ease; border: 1px solid #ccc; background: #fff; padding: 0 20px; margin-bottom: 20px; border-radius: 10px; box-shadow: 0 2px 6px rgba(0,0,0,0.05); }
-    .section.open { padding: 20px; max-height: 1000px; }
-    label { font-weight: 500; margin-top: 10px; display: block; }
-    input, textarea, select { width: 100%; padding: 10px; margin-top: 4px; border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box; }
-    button { background-color: #0078D4; color: white; border: none; padding: 10px 16px; border-radius: 6px; cursor: pointer; margin-top: 12px; font-size: 16px; }
-    button:hover { background-color: #005fa3; }
-    .checkbox-group { margin-top: 8px; }
-    .checkbox-group label { display: flex; align-items: center; margin: 6px 0; }
-    .checkbox-group input[type="checkbox"] { margin-right: 8px; }
-    #submitResult, #queryResult { margin-top: 15px; background: #f0f8ff; padding: 10px; border-radius: 6px; border: 1px solid #cce; }
+    body { font-family: sans-serif; padding: 20px; }
+    label { display: block; margin-top: 10px; }
+    input, textarea, select { width: 100%; padding: 8px; margin-top: 5px; }
+    button { margin-top: 15px; padding: 10px 20px; }
+    #result { margin-top: 20px; }
   </style>
 </head>
 <body>
+  <h2>派工需求提交</h2>
+  <form id="requestForm">
+    <label>單位：<input type="text" name="unit" required /></label>
+    <label>床號：<input type="text" name="bed" required /></label>
+    <label>性別：
+      <select name="gender">
+        <option value="男">男</option>
+        <option value="女">女</option>
+      </select>
+    </label>
+    <label>電話：<input type="text" name="phone" required /></label>
+    <label>需求：<textarea name="requestitems" required></textarea></label>
+    <label>備註：<textarea name="note"></textarea></label>
+    <button type="submit">提交需求</button>
+  </form>
 
-  <h2 class="toggle" data-target="submitSection">📝 提交洗剪髮需求</h2>
-  <div class="section" id="submitSection">
-    <form id="submitForm">
-      <label>單位：<input name="unit" required /></label>
-      <label>床號：<input name="bed" required /></label>
-      <label>性別：
-        <select name="gender" required>
-          <option value="">請選擇</option>
-          <option value="男">男</option>
-          <option value="女">女</option>
-        </select>
-      </label>
-      <label>聯絡電話：<input name="phone" required /></label>
-      <label>需求項目：</label>
-      <div class="checkbox-group">
-        <label><input type="checkbox" name="requestItems" value="洗髮" /> 洗髮</label>
-        <label><input type="checkbox" name="requestItems" value="剪髮" /> 剪髮</label>
-        <label><input type="checkbox" name="requestItems" value="需求3" /> 需求3</label>
-        <label><input type="checkbox" name="requestItems" value="需求4" /> 需求4</label>
-        <label><input type="checkbox" name="requestItems" value="需求5" /> 需求5</label>
-      </div>
-      <label>備註：<textarea name="note"></textarea></label>
-      <button type="submit">送出需求</button>
-    </form>
-    <div id="submitResult"></div>
-  </div>
+  <div id="result"></div>
 
-  <h2 class="toggle" data-target="querySection">🔍 查詢 / 刪除需求</h2>
-  <div class="section" id="querySection">
-    <form id="queryForm">
-      <label>電話號碼：<input name="phone" required /></label>
-      <button type="submit">查詢需求</button>
-    </form>
-    <div id="queryResult"></div>
-  </div>
+  <script>
+    const scriptURL = 'https://script.google.com/macros/s/AKfycbzyXjOaks4BYzZyt_krzjZwN0skLSEiMdGkw1C1YgFKloyt7VYGFhzU71qrI8ieS_E/exec';
 
-<script>
-  const API_URL = "https://script.google.com/macros/s/AKfycbzyXjOaks4BYzZyt_krzjZwN0skLSEiMdGkw1C1YgFKloyt7VYGFhzU71qrI8ieS_E/exec";
+    document.getElementById('requestForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const formData = new FormData(e.target);
+      const data = Object.fromEntries(formData.entries());
 
-  document.querySelectorAll(".toggle").forEach(toggle => {
-    toggle.addEventListener("click", () => {
-      const targetId = toggle.dataset.target;
-      const targetSection = document.getElementById(targetId);
-      const isOpen = targetSection.classList.contains("open");
-      document.querySelectorAll(".section").forEach(sec => sec.classList.remove("open"));
-      if (!isOpen) targetSection.classList.add("open");
-    });
-  });
+      // 加入隨機識別碼
+      data.id = 'REQ-' + Math.random().toString(36).substring(2, 10);
 
-  document.getElementById("submitForm").addEventListener("submit", async (e) => {
-    e.preventDefault();
-    const formData = new FormData(e.target);
-    const items = [];
-    document.querySelectorAll('input[name="requestItems"]:checked').forEach(cb => items.push(cb.value));
-    formData.set("requestItems", items.join(","));
-    formData.append("action", "submit");
-
-    try {
-      const res = await fetch(API_URL, { method: "POST", body: formData });
-      const result = await res.json();
-
-      if (result.status !== "success") {
-        document.getElementById("submitResult").innerHTML = `<p>⚠️ 錯誤：${result.message}</p>`;
-      } else {
-        document.getElementById("submitResult").innerHTML = `<p>✅ 已提交！您的序號是 <strong>${result.data.id}</strong></p>`;
+      try {
+        const res = await fetch(scriptURL, {
+          method: 'POST',
+          body: JSON.stringify(data),
+          headers: { 'Content-Type': 'application/json' }
+        });
+        const result = await res.json();
+        document.getElementById('result').innerText = result.message || '提交成功';
+        e.target.reset();
+      } catch (err) {
+        document.getElementById('result').innerText = '提交失敗，請稍後再試';
+        console.error(err);
       }
-    } catch (err) {
-      console.error("提交錯誤：", err);
-      document.getElementById("submitResult").innerHTML = `<p>⚠️ 系統錯誤：${err.message}</p>`;
-    }
-  });
-
-document.getElementById("queryForm").addEventListener("submit", async (e) => {
-  e.preventDefault();
-  const phone = e.target.phone.value;
-
-  const formData = new FormData();
-  formData.append("action", "query");
-  formData.append("phone", phone);
-
-  try {
-    const res = await fetch(API_URL, {
-      method: "POST",
-      body: formData
     });
-    const result = await res.json();
-
-    if (result.status !== "success") {
-      document.getElementById("queryResult").innerHTML = `<p>⚠️ 錯誤：${result.message}</p>`;
-    } else {
-      const entry = result.data[0];
-      document.getElementById("queryResult").innerHTML = `
-        <p>🔎 查詢成功！序號：<strong>${entry.id}</strong></p>
-        <p>單位：${entry.unit}<br>床號：${entry.bed}<br>性別：${entry.gender}<br>需求：${entry.requestitems}<br>備註：${entry.note}</p>
-        <button onclick="deleteRequest('${entry.id}', '${entry.phone}')">❌ 刪除需求</button>
-      `;
-    }
-  } catch (err) {
-    console.error("查詢錯誤：", err);
-    document.getElementById("queryResult").innerHTML = `<p>⚠️ 查詢失敗：${err.message}</p>`;
-  }
-});
-
-  async function deleteRequest(id, phone) {
-    const formData = new FormData();
-    formData.append("action", "delete");
-    formData.append("id", id);
-    formData.append("phone", phone);
-
-    try {
-      const res = await fetch(API_URL, { method: "POST", body: formData });
-      const result = await res.json();
-
-      if (result.status === "success") {
-        alert("✅ 刪除成功！");
-        document.getElementById("queryResult").innerHTML = "";
-      } else {
-        alert("⚠️ 刪除失敗：" + result.message);
-      }
-    } catch (err) {
-      console.error("刪除錯誤：", err);
-      alert("⚠️ 系統錯誤：" + err.message);
-    }
-  }
-</script>
-
+  </script>
 </body>
 </html>
-
-
-
