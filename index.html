@@ -78,56 +78,68 @@
     });
 
     // 查詢需求（手機號完全一致）
-    document.getElementById('queryForm').addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const keyword = e.target.keyword.value.trim();
-      const url = `${scriptURL}?action=query&keyword=${encodeURIComponent(keyword)}`;
+document.getElementById('queryForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const keyword = e.target.keyword.value.trim();
+  console.log('🔍 查詢關鍵字:', keyword);
 
-      try {
-        const res = await fetch(url);
-        const result = await res.json();
+  const url = `${scriptURL}?action=query&keyword=${encodeURIComponent(keyword)}`;
+  console.log('📡 查詢 URL:', url);
 
-        if (result.data && result.data.length > 0) {
-          const filtered = result.data.filter(item => item.phone === keyword);
-          if (filtered.length === 0) {
-            document.getElementById('queryResult').innerText = '查無資料';
-            return;
-          }
+  try {
+    const res = await fetch(url);
+    const result = await res.json();
+    console.log('📥 後端回傳結果:', result);
 
-          const html = `
-            <table>
-              <tr>
-                <th>單位</th><th>床號</th><th>性別</th><th>電話</th><th>需求</th><th>備註</th><th>狀態</th><th>功能</th>
-              </tr>
-              ${filtered.map(item => {
-                const disabled = ['已完成', '已取消'].includes(item.status);
-                return `
-                  <tr>
-                    <td><input type="text" value="${item.unit}" data-id="${item.id}" class="edit-unit" ${disabled ? 'disabled' : ''}></td>
-                    <td><input type="text" value="${item.bed}" data-id="${item.id}" class="edit-bed" ${disabled ? 'disabled' : ''}></td>
-                    <td><input type="text" value="${item.gender}" data-id="${item.id}" class="edit-gender" ${disabled ? 'disabled' : ''}></td>
-                    <td><input type="text" value="${item.phone}" data-id="${item.id}" class="edit-phone" ${disabled ? 'disabled' : ''}></td>
-                    <td><input type="text" value="${item.requestitems}" data-id="${item.id}" class="edit-requestitems" ${disabled ? 'disabled' : ''}></td>
-                    <td><input type="text" value="${item.note}" data-id="${item.id}" class="edit-note" ${disabled ? 'disabled' : ''}></td>
-                    <td><input type="text" value="${item.status}" data-id="${item.id}" class="edit-status" ${disabled ? 'disabled' : ''}></td>
-                    <td>
-                      <button onclick="updateRequest('${item.id}')" ${disabled ? 'disabled' : ''}>✏️ 更新</button>
-                      <button onclick="deleteRequest('${item.id}')" ${disabled ? 'disabled' : ''}>🗑️ 刪除</button>
-                    </td>
-                  </tr>
-                `;
-              }).join('')}
-            </table>
-          `;
-          document.getElementById('queryResult').innerHTML = html;
-        } else {
-          document.getElementById('queryResult').innerText = '查無資料';
-        }
-      } catch (err) {
-        document.getElementById('queryResult').innerText = '查詢失敗';
-        console.error(err);
+    if (result.data && result.data.length > 0) {
+      const filtered = result.data.filter(item => {
+        const phone = String(item.phone).trim();
+        console.log(`📎 比對資料 phone=${phone}, keyword=${keyword}`);
+        return phone === keyword;
+      });
+
+      if (filtered.length === 0) {
+        document.getElementById('queryResult').innerText = '查無資料';
+        console.warn('⚠️ 資料存在但無完全符合的電話');
+        return;
       }
-    });
+
+      const html = `
+        <table>
+          <tr>
+            <th>單位</th><th>床號</th><th>性別</th><th>電話</th><th>需求</th><th>備註</th><th>狀態</th><th>功能</th>
+          </tr>
+          ${filtered.map(item => {
+            const disabled = ['已完成', '已取消'].includes(item.status);
+            return `
+              <tr>
+                <td><input type="text" value="${item.unit}" data-id="${item.id}" class="edit-unit" ${disabled ? 'disabled' : ''}></td>
+                <td><input type="text" value="${item.bed}" data-id="${item.id}" class="edit-bed" ${disabled ? 'disabled' : ''}></td>
+                <td><input type="text" value="${item.gender}" data-id="${item.id}" class="edit-gender" ${disabled ? 'disabled' : ''}></td>
+                <td><input type="text" value="${item.phone}" data-id="${item.id}" class="edit-phone" ${disabled ? 'disabled' : ''}></td>
+                <td><input type="text" value="${item.requestitems}" data-id="${item.id}" class="edit-requestitems" ${disabled ? 'disabled' : ''}></td>
+                <td><input type="text" value="${item.note}" data-id="${item.id}" class="edit-note" ${disabled ? 'disabled' : ''}></td>
+                <td><input type="text" value="${item.status}" data-id="${item.id}" class="edit-status" ${disabled ? 'disabled' : ''}></td>
+                <td>
+                  <button onclick="updateRequest('${item.id}')" ${disabled ? 'disabled' : ''}>✏️ 更新</button>
+                  <button onclick="deleteRequest('${item.id}')" ${disabled ? 'disabled' : ''}>🗑️ 刪除</button>
+                </td>
+              </tr>
+            `;
+          }).join('')}
+        </table>
+      `;
+      document.getElementById('queryResult').innerHTML = html;
+    } else {
+      document.getElementById('queryResult').innerText = '查無資料';
+      console.warn('⚠️ 後端回傳 data 為空');
+    }
+  } catch (err) {
+    document.getElementById('queryResult').innerText = '查詢失敗';
+    console.error('❌ 查詢錯誤:', err);
+  }
+});
+
 
     // 更新需求
     async function updateRequest(id) {
@@ -174,3 +186,4 @@
   </script>
 </body>
 </html>  
+
