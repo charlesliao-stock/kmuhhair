@@ -3,153 +3,272 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>系統管理後台 - 醫院美髮部</title>
+    <title>管理系統 - 醫院美髮部</title>
     <link rel="stylesheet" href="style.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        .admin-layout { display: flex; min-height: 100vh; background: var(--bg); }
+        .sidebar { width: 220px; background: #2c3e50; color: white; padding: 20px 0; display: flex; flex-direction: column; flex-shrink: 0; }
+        .sidebar-title { padding: 0 20px 20px; border-bottom: 1px solid #3e4f5f; margin-bottom: 10px; font-size: 1.2rem; }
+        .nav-item { background: none; border: none; color: #bdc3c7; padding: 15px 25px; text-align: left; cursor: pointer; width: 100%; transition: 0.3s; font-size: 1rem; }
+        .nav-item:hover, .nav-item.active { background: #34495e; color: white; border-left: 4px solid var(--primary); }
+        .main-content { flex: 1; padding: 25px; overflow-y: auto; }
+        .tab-content { display: none; animation: fadeIn 0.3s ease; }
+        .tab-content.active { display: block; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        
+        /* 表格樣式 */
+        .admin-table { width: 100%; border-collapse: collapse; background: white; border-radius: 8px; overflow: hidden; }
+        .admin-table th, .admin-table td { padding: 12px 15px; border-bottom: 1px solid #edf2f7; text-align: left; }
+        .admin-table th { background: #f8fafc; color: #64748b; font-size: 0.85rem; text-transform: uppercase; }
+        
+        /* 彈窗樣式 */
+        .modal { position: fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); display:none; align-items:center; justify-content:center; z-index:1000; }
+        .modal-body { background:white; padding:30px; border-radius:12px; width:90%; max-width:500px; }
+        
+        .btn-small { padding: 6px 12px; font-size: 0.85rem; border-radius: 4px; border: 1px solid var(--border); background: white; cursor: pointer; }
+        .btn-small:hover { background: #f1f5f9; }
+    </style>
 </head>
 <body class="admin-layout">
 
 <aside class="sidebar">
-    <h3>系統管理</h3>
+    <div class="sidebar-title">美髮部管理</div>
     <nav>
-        <button onclick="switchTab('dispatch')">需求派遣</button>
-        <button onclick="switchTab('staff')">人員管理</button>
-        <button onclick="switchTab('scheduling')">排班管理</button>
-        <button onclick="switchTab('web-config')">網約管理</button>
-        <button onclick="switchTab('stats')">數據統計</button>
+        <button class="nav-item active" onclick="switchTab('dispatch')">需求派遣</button>
+        <button class="nav-item" onclick="switchTab('staff')">人員管理</button>
+        <button class="nav-item" onclick="switchTab('schedule')">排班管理</button>
+        <button class="nav-item" onclick="switchTab('config')">網約設定</button>
+        <button class="nav-item" onclick="switchTab('stats')">數據統計</button>
     </nav>
-    <button id="logoutBtn" class="btn-cancel" style="margin-top: auto;">登出</button>
+    <button id="logoutBtn" class="nav-item" style="margin-top: auto; color: #e74c3c;">登出系統</button>
 </aside>
 
-<main class="content-area">
-    <section id="tab-dispatch" class="tab-content active">
-        <div class="section-title">即時派遣任務</div>
+<main class="main-content">
+    
+    <section id="dispatch" class="tab-content active">
+        <div class="section-title">即時待派遣訂單</div>
         <div id="pendingList" class="flex-container"></div>
     </section>
 
-    <section id="tab-staff" class="tab-content">
-        <div class="section-title">人員管理</div>
-        <div class="card">
+    <section id="staff" class="tab-content">
+        <div class="section-title">工作人員名單</div>
+        <div class="booking-card" style="margin:0 0 20px; max-width:100%;">
             <div class="info-grid">
-                <input type="text" id="staffName" placeholder="員工姓名">
+                <input type="text" id="staffName" placeholder="姓名">
                 <input type="email" id="staffEmail" placeholder="Email (登入帳號)">
-                <button onclick="addStaff()" class="btn-submit">新增人員</button>
+                <select id="staffRole">
+                    <option value="stylist">美髮師</option>
+                    <option value="admin">管理者</option>
+                </select>
+                <button onclick="saveStaff()" class="btn-submit">新增/更新人員</button>
             </div>
+        </div>
+        <table class="admin-table">
+            <thead><tr><th>姓名</th><th>Email</th><th>權限</th><th>操作</th></tr></thead>
+            <tbody id="staffTableBody"></tbody>
+        </table>
+    </section>
+
+    <section id="schedule" class="tab-content">
+        <div class="section-title">循環週班表 (多人排班)</div>
+        <div class="booking-card" style="margin:0; max-width:100%; overflow-x: auto;">
             <table class="admin-table">
-                <thead><tr><th>姓名</th><th>Email</th><th>操作</th></tr></thead>
-                <tbody id="staffTableBody"></tbody>
+                <thead id="schedHead"></thead>
+                <tbody id="schedBody"></tbody>
             </table>
+            <button onclick="saveWeekSettings()" class="btn-submit" style="margin-top:20px;">儲存週設定</button>
         </div>
     </section>
 
-    <section id="tab-scheduling" class="tab-content">
-        <div class="section-title">人員循環週班表</div>
-        <div class="card overflow-x">
-            <table class="schedule-table">
-                <thead id="scheduleHead"></thead>
-                <tbody id="scheduleBody"></tbody>
-            </table>
-            <button onclick="saveSchedule()" class="btn-submit" style="margin-top:15px;">儲存班表設定</button>
-        </div>
-    </section>
-
-    <section id="tab-web-config" class="tab-content">
-        <div class="section-title">網約循環週設定</div>
-        <div class="card">
-            <table class="schedule-table">
-                <thead id="webConfigHead"></thead>
+    <section id="config" class="tab-content">
+        <div class="section-title">網約時間與截止設定</div>
+        <div class="booking-card" style="margin:0; max-width:100%;">
+            <table class="admin-table">
+                <thead><tr><th>星期</th><th>上午截止 (如 11:30)</th><th>下午截止 (如 16:00)</th></tr></thead>
                 <tbody id="webConfigBody"></tbody>
             </table>
-            <button onclick="saveWebConfig()" class="btn-submit" style="margin-top:15px;">儲存網約設定</button>
+            <button onclick="saveWeekSettings()" class="btn-submit" style="margin-top:20px;">儲存時間設定</button>
         </div>
     </section>
 
-    <section id="tab-stats" class="tab-content">
-        <div class="section-title">數據統計報表</div>
+    <section id="stats" class="tab-content">
+        <div class="section-title">營業統計</div>
         <div class="info-grid" style="margin-bottom:20px;">
-            <select id="statsRange">
-                <option value="day">今日</option>
-                <option value="week">本週</option>
-                <option value="month">本月</option>
-                <option value="quarter">本季</option>
-                <option value="year">今年</option>
-            </select>
-            <button onclick="loadStats()" class="btn-submit">產生報表</button>
+            <input type="date" id="statStart">
+            <input type="date" id="statEnd">
+            <button onclick="loadStatistics()" class="btn-submit">產生報表</button>
         </div>
-        <div class="card">
-            <canvas id="statsChart"></canvas>
+        <div class="dashboard-grid">
+            <div class="stat-card">總營業額：$<span id="revTotal">0</span></div>
+            <div class="stat-card">總完工數：<span id="orderTotal">0</span></div>
         </div>
+        <canvas id="staffChart" style="max-height: 400px; margin-top:30px;"></canvas>
     </section>
+
 </main>
+
+<audio id="alertSound" src="https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3" preload="auto"></audio>
 
 <script type="module">
     import { db, auth } from './firebase-config.js';
-    import { collection, doc, getDocs, setDoc, updateDoc, deleteDoc, query, where, onSnapshot } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+    import { collection, doc, getDocs, getDoc, setDoc, updateDoc, deleteDoc, query, where, onSnapshot, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+    import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 
-    // --- Tab 切換邏輯 ---
+    const days = ['週一', '週二', '週三', '週四', '週五', '週六', '週日'];
+    let allStylists = [];
+
+    // --- 頁面初始化與權限檢查 ---
+    onAuthStateChanged(auth, async (user) => {
+        if (!user) window.location.href = 'login.html';
+        initAdmin();
+    });
+
+    async function initAdmin() {
+        await loadStaffList();
+        renderScheduleUI();
+        renderWebConfigUI();
+        listenToOrders();
+    }
+
     window.switchTab = (tabId) => {
-        document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
-        document.getElementById(`tab-${tabId}`).classList.add('active');
-        if(tabId === 'scheduling') loadScheduleData();
-        if(tabId === 'staff') loadStaffList();
+        document.querySelectorAll('.tab-content, .nav-item').forEach(el => el.classList.remove('active'));
+        document.getElementById(tabId).classList.add('active');
+        event.currentTarget.classList.add('active');
     };
 
-    // --- 人員管理邏輯 ---
-    window.loadStaffList = async () => {
-        const snap = await getDocs(query(collection(db, "Users"), where("role", "==", "stylist")));
+    // --- 1. 監聽訂單 (派遣) ---
+    function listenToOrders() {
+        const q = query(collection(db, "Orders"), where("status", "==", 0));
+        onSnapshot(q, (snap) => {
+            const list = document.getElementById('pendingList');
+            list.innerHTML = '';
+            if (snap.docChanges().some(c => c.type === "added")) document.getElementById('alertSound').play().catch(()=>{});
+            snap.forEach(d => {
+                const data = d.data();
+                list.innerHTML += `<div class="item-card" style="flex:0 0 100%;">
+                    <span><strong>${data.room}</strong> - ${data.services.join(',')}</span>
+                    <button class="btn-submit" style="padding:5px 15px;" onclick="dispatchOrder('${d.id}')">派工</button>
+                </div>`;
+            });
+        });
+    }
+
+    // --- 2. 人員管理 (編輯與權限) ---
+    async function loadStaffList() {
+        const snap = await getDocs(collection(db, "Users"));
         const body = document.getElementById('staffTableBody');
+        allStylists = [];
         body.innerHTML = '';
         snap.forEach(sDoc => {
             const d = sDoc.data();
-            body.innerHTML += `<tr><td>${d.name}</td><td>${d.email}</td><td><button onclick="deleteStaff('${sDoc.id}')">刪除</button></td></tr>`;
+            if(d.role === 'stylist') allStylists.push({id: sDoc.id, name: d.name});
+            body.innerHTML += `<tr>
+                <td>${d.name}</td><td>${d.email}</td><td>${d.role}</td>
+                <td><button class="btn-small" onclick="fillStaffEdit('${sDoc.id}','${d.name}','${d.email}','${d.role}')">編輯</button></td>
+            </tr>`;
         });
+    }
+
+    window.fillStaffEdit = (id, name, email, role) => {
+        document.getElementById('staffName').value = name;
+        document.getElementById('staffEmail').value = email;
+        document.getElementById('staffRole').value = role;
     };
 
-    // --- 排班管理 (循環週) ---
-    const days = ['週一', '週二', '週三', '週四', '週五', '週六', '週日'];
-    window.loadScheduleData = async () => {
-        const head = document.getElementById('scheduleHead');
-        const body = document.getElementById('scheduleBody');
-        const staffSnap = await getDocs(query(collection(db, "Users"), where("role", "==", "stylist")));
-        const staffs = staffSnap.docs.map(d => ({id: d.id, name: d.data().name}));
+    window.saveStaff = async () => {
+        const email = document.getElementById('staffEmail').value;
+        const name = document.getElementById('staffName').value;
+        const role = document.getElementById('staffRole').value;
+        // 使用 email 作為 Document ID 確保唯一性 (簡化版)
+        await setDoc(doc(db, "Users", email.replace('.','_')), { name, email, role }, { merge: true });
+        alert("存檔成功"); loadStaffList();
+    };
 
-        head.innerHTML = `<tr><th>時段</th>${days.map(d => `<th>${d}</th>`).join('')}</tr>`;
+    // --- 3. 週設定 (多人排班 + 網約時間) ---
+    function renderScheduleUI() {
+        const head = document.getElementById('schedHead');
+        const body = document.getElementById('schedBody');
+        head.innerHTML = `<tr><th>時段</th>${days.map(d=>`<th>${d}</th>`).join('')}</tr>`;
         
-        let html = `<tr><td>是否營業</td>${days.map((d, i) => `<td><input type="checkbox" id="open-${i}"></td>`).join('')}</tr>`;
-        html += `<tr><td>上午人員</td>${days.map((d, i) => `<td><select id="am-${i}">${staffs.map(s => `<option value="${s.id}">${s.name}</option>`).join('')}</select></td>`).join('')}</tr>`;
-        html += `<tr><td>下午人員</td>${days.map((d, i) => `<td><select id="pm-${i}">${staffs.map(s => `<option value="${s.id}">${s.name}</option>`).join('')}</select></td>`).join('')}</tr>`;
-        body.innerHTML = html;
+        const rows = ['am', 'pm'];
+        body.innerHTML = rows.map(slot => `
+            <tr>
+                <td>${slot === 'am' ? '上午人員' : '下午人員'}</td>
+                ${days.map((_, i) => `<td><div id="cell-${slot}-${i}"></div></td>`).join('')}
+            </tr>
+        `).join('');
+
+        // 填充美髮師勾選框
+        days.forEach((_, i) => {
+            rows.forEach(slot => {
+                const container = document.getElementById(`cell-${slot}-${i}`);
+                allStylists.forEach(s => {
+                    container.innerHTML += `<label style="display:block;font-size:0.8rem;">
+                        <input type="checkbox" class="sched-check" data-day="${i}" data-slot="${slot}" value="${s.name}"> ${s.name}
+                    </label>`;
+                });
+            });
+        });
+    }
+
+    function renderWebConfigUI() {
+        const body = document.getElementById('webConfigBody');
+        body.innerHTML = days.map((day, i) => `
+            <tr>
+                <td>${day}</td>
+                <td><input type="time" class="time-limit" data-day="${i}" data-slot="amEnd" value="11:30"></td>
+                <td><input type="time" class="time-limit" data-day="${i}" data-slot="pmEnd" value="16:00"></td>
+            </tr>
+        `).join('');
+    }
+
+    window.saveWeekSettings = async () => {
+        const config = {};
+        days.forEach((_, i) => {
+            const amStaffs = Array.from(document.querySelectorAll(`.sched-check[data-day="${i}"][data-slot="am"]:checked`)).map(el => el.value);
+            const pmStaffs = Array.from(document.querySelectorAll(`.sched-check[data-day="${i}"][data-slot="pm"]:checked`)).map(el => el.value);
+            const amEnd = document.querySelector(`.time-limit[data-day="${i}"][data-slot="amEnd"]`).value;
+            const pmEnd = document.querySelector(`.time-limit[data-day="${i}"][data-slot="pmEnd"]`).value;
+            
+            config[`day${i}`] = { amStaffs, pmStaffs, amEnd, pmEnd };
+        });
+        await setDoc(doc(db, "Settings", "WebConfig"), config);
+        alert("週循環設定已更新");
     };
 
-    // --- 統計功能 (Chart.js) ---
+    // --- 4. 統計 ---
     let myChart;
-    window.loadStats = async () => {
-        const range = document.getElementById('statsRange').value;
-        // 這裡應根據 range 計算日期區間並從 Firestore 撈取資料
-        // 以下為示範靜態數據
-        const ctx = document.getElementById('statsChart').getContext('2d');
+    window.loadStatistics = async () => {
+        const start = document.getElementById('statStart').value;
+        const end = document.getElementById('statEnd').value;
+        const q = query(collection(db, "Orders"), where("bookDate", ">=", start), where("bookDate", "<=", end), where("status", "==", 3));
+        const snap = await getDocs(q);
+        
+        let totalRev = 0;
+        const staffWork = {};
+        snap.forEach(d => {
+            const data = d.data();
+            totalRev += data.totalAmount;
+            const sName = data.stylistName || '未指派';
+            staffWork[sName] = (staffWork[sName] || 0) + 1;
+        });
+
+        document.getElementById('revTotal').innerText = totalRev;
+        document.getElementById('orderTotal').innerText = snap.size;
+
+        const ctx = document.getElementById('staffChart').getContext('2d');
         if(myChart) myChart.destroy();
         myChart = new Chart(ctx, {
             type: 'bar',
             data: {
-                labels: ['王大明', '李小美', '陳阿姨'],
-                datasets: [{ label: '完工件數', data: [12, 19, 3], backgroundColor: '#3498db' }]
+                labels: Object.keys(staffWork),
+                datasets: [{ label: '個人接單數', data: Object.values(staffWork), backgroundColor: '#007bff' }]
             }
         });
     };
-</script>
 
-<style>
-    .admin-layout { display: flex; min-height: 100vh; background: #f0f2f5; }
-    .sidebar { width: 200px; background: #2c3e50; color: white; padding: 20px; display: flex; flex-direction: column; }
-    .sidebar button { background: none; border: none; color: #bdc3c7; padding: 15px; text-align: left; cursor: pointer; font-size: 1rem; border-bottom: 1px solid #34495e; }
-    .sidebar button:hover { color: white; background: #34495e; }
-    .content-area { flex: 1; padding: 30px; }
-    .tab-content { display: none; }
-    .tab-content.active { display: block; }
-    .admin-table, .schedule-table { width: 100%; border-collapse: collapse; background: white; }
-    .admin-table th, .admin-table td, .schedule-table th, .schedule-table td { border: 1px solid #eee; padding: 12px; text-align: center; }
-    .overflow-x { overflow-x: auto; }
-</style>
+    document.getElementById('logoutBtn').addEventListener('click', () => signOut(auth));
+</script>
 </body>
 </html>
