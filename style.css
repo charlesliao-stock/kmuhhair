@@ -1,104 +1,88 @@
-/* style.css */
 :root {
-    --primary: #3498db;
-    --secondary: #2ecc71;
-    --urgent: #e74c3c;
-    --bg: #f4f7f9;
-    --card-bg: #ffffff;
+    --primary: #007bff; /* 醫療藍 */
+    --urgent: #dc3545; /* 警告紅 */
+    --text: #334155;
+    --border: #e2e8f0;
+    --bg: #f8fafc;
 }
 
-body { font-family: "Microsoft JhengHei", sans-serif; background: var(--bg); padding: 15px; }
+body { font-family: "PingFang TC", "Microsoft JhengHei", sans-serif; background: var(--bg); padding: 10px; color: var(--text); }
 
 .booking-card {
-    background: var(--card-bg); max-width: 550px; margin: auto; padding: 25px;
-    border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+    background: white; max-width: 650px; margin: 20px auto; padding: 30px;
+    border-radius: 16px; box-shadow: 0 10px 25px rgba(0,0,0,0.05);
 }
 
-h2 { text-align: center; color: #2c3e50; margin-bottom: 25px; }
+.main-title { text-align: center; color: #1e293b; margin-bottom: 30px; font-weight: 800; }
 
+/* 統一的分類標題樣式 */
 .section-title {
-    font-size: 1rem; font-weight: bold; margin: 20px 0 12px;
-    border-left: 4px solid var(--primary); padding-left: 10px;
+    font-size: 1.1rem; font-weight: 700; margin: 30px 0 15px;
+    border-left: 5px solid var(--primary); padding-left: 12px;
+    color: #1e293b;
 }
 
-/* 一行兩個的容器 */
-.flex-container {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 10px; /* 卡片間距 */
-    justify-content: space-between;
-}
+/* 病人資訊網格佈局 */
+.info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+.full-width { grid-column: span 2; }
 
-/* 統一的卡片樣式 (項目與特殊需求一致) */
+.form-group label { display: block; font-size: 0.9rem; margin-bottom: 6px; font-weight: 600; color: #64748b; }
+
+input, select, textarea {
+    width: 100%; padding: 12px; border: 1.5px solid var(--border);
+    border-radius: 8px; font-size: 1rem; transition: all 0.2s;
+}
+input:focus, select:focus, textarea:focus { border-color: var(--primary); outline: none; box-shadow: 0 0 0 3px rgba(0,123,255,0.1); }
+
+/* 卡片容器：一行兩個 */
+.flex-container { display: flex; flex-wrap: wrap; gap: 12px; justify-content: space-between; }
+
+/* 核心卡片：強制內容在一行 */
 .item-card {
-    flex: 0 0 48%; /* 寬度約 48%，達成一行兩個 */
-    display: flex;
-    flex-direction: column;
-    justify-content: space-between;
-    background: #fff;
-    border: 1px solid #e0e6ed;
-    padding: 12px;
-    border-radius: 8px;
-    cursor: pointer;
-    box-sizing: border-box;
-    transition: all 0.2s;
+    flex: 0 0 calc(50% - 6px);
+    display: flex; align-items: center; justify-content: space-between;
+    background: #fff; border: 1.5px solid var(--border);
+    padding: 14px 12px; border-radius: 10px; cursor: pointer;
+    box-sizing: border-box; white-space: nowrap; transition: 0.2s;
 }
-
 .item-card:hover { border-color: var(--primary); background: #f0f7ff; }
 
-/* 勾選框與文字不換行 */
-.item-top {
-    display: flex;
-    align-items: center;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
+.item-left { display: flex; align-items: center; overflow: hidden; }
+.item-left input[type="checkbox"] { width: 18px; height: 18px; margin-right: 10px; flex-shrink: 0; }
+.item-name { font-size: 0.95rem; font-weight: 500; overflow: hidden; text-overflow: ellipsis; }
 
-.item-top input[type="checkbox"] {
-    width: 18px; height: 18px; margin-right: 8px; flex-shrink: 0;
-}
+.item-price { font-weight: 700; color: var(--primary); flex-shrink: 0; margin-left: 8px; }
 
-.item-name { font-size: 0.95rem; color: #333; }
+/* 日期與時段併排 */
+.datetime-group { display: flex; gap: 12px; }
 
-/* 金額樣式 */
-.item-price {
-    text-align: right;
-    font-weight: bold;
-    color: var(--primary);
-    margin-top: 5px;
-}
-
-/* 出院標籤特殊處理 */
-.urgent-card { background: #fff9f0; border-color: #ffdcb0; }
-.urgent-card .item-name { color: #d35400; font-weight: bold; }
-
-/* 按鈕美化 */
-.btn-group {
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-    margin-top: 30px;
-}
-
-.btn-submit {
-    padding: 16px; background: var(--primary); color: white; border: none;
-    border-radius: 8px; font-size: 1.1rem; cursor: pointer; font-weight: bold;
-    box-shadow: 0 4px 6px rgba(52, 152, 219, 0.2);
-}
-
-.btn-submit:hover { background: #2980b9; transform: translateY(-1px); }
-
-.btn-cancel {
-    padding: 16px; background: #95a5a6; color: white; text-align: center;
-    text-decoration: none; border-radius: 8px; font-size: 1.1rem;
-    transition: background 0.2s;
-}
-
-.btn-cancel:hover { background: #7f8c8d; }
+.urgent-card { background: #fef2f2; border-color: #fecaca; }
+.urgent-card .item-name { color: #b91c1c; font-weight: 700; }
 
 .total-box {
-    background: #f8f9fa; padding: 15px; border-radius: 8px;
-    text-align: right; margin-top: 20px; border: 1px dashed #ced4da;
+    background: #f1f5f9; padding: 20px; border-radius: 12px;
+    text-align: right; margin-top: 30px; border: 1.5px dashed #cbd5e1;
 }
-.total-amount { font-size: 1.5rem; color: var(--urgent); font-weight: bold; }
+.total-amount { font-size: 1.6rem; color: var(--urgent); font-weight: 800; }
+
+/* 按鈕美化 */
+.btn-group { display: flex; flex-direction: column; gap: 12px; margin-top: 35px; }
+
+.btn-submit {
+    padding: 18px; background: var(--primary); color: white; border: none;
+    border-radius: 10px; font-size: 1.15rem; cursor: pointer; font-weight: 700;
+    box-shadow: 0 4px 12px rgba(0, 123, 255, 0.25);
+}
+.btn-submit:hover { background: #0069d9; transform: translateY(-2px); }
+
+.btn-cancel {
+    padding: 18px; background: #f1f5f9; color: #475569; text-align: center;
+    text-decoration: none; border-radius: 10px; font-size: 1.1rem; font-weight: 600;
+}
+.btn-cancel:hover { background: #e2e8f0; }
+
+@media (max-width: 500px) {
+    .item-card { flex: 0 0 100%; }
+    .info-grid { grid-template-columns: 1fr; }
+    .full-width { grid-column: span 1; }
+}
