@@ -1,151 +1,108 @@
-//style.css
+:root {
+    --primary: #3498db;
+    --secondary: #2ecc71;
+    --urgent: #e74c3c;
+    --gray: #95a5a6;
+    --bg: #f8f9fa;
+}
 
 body {
-  font-family: Arial, sans-serif;
-  padding: 20px;
+    font-family: "Microsoft JhengHei", sans-serif;
+    background-color: var(--bg);
+    padding: 20px;
+    margin: 0;
 }
 
-table {
-  border-collapse: collapse;
-  margin-top: 20px;
-  width: 100%;
+.booking-card {
+    background: white;
+    max-width: 500px;
+    margin: 20px auto;
+    padding: 30px;
+    border-radius: 12px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.1);
 }
 
-th, td {
-  border: 1px solid #888;
-  padding: 6px;
-  text-align: center;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+h2 { text-align: center; color: #2c3e50; }
+
+.section-title {
+    font-size: 1rem;
+    font-weight: bold;
+    margin: 25px 0 12px;
+    border-left: 4px solid var(--primary);
+    padding-left: 10px;
 }
 
-th {
-  background-color: #eee;
+.form-group { margin-bottom: 15px; }
+label { display: block; margin-bottom: 5px; font-weight: bold; }
+
+input, select, textarea {
+    width: 100%;
+    padding: 12px;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    box-sizing: border-box;
+    font-size: 1rem;
 }
 
-.weekend {
-  background-color: #fce4ec;
+.service-item {
+    display: flex;
+    justify-content: space-between;
+    background: #fdfdfd;
+    border: 1px solid #eee;
+    padding: 12px;
+    border-radius: 6px;
+    margin-bottom: 8px;
+    cursor: pointer;
 }
 
-#settingPanel {
-  margin-bottom: 15px;
+.tag-group { display: flex; flex-wrap: wrap; gap: 8px; }
+.tag-item {
+    background: #f1f2f6;
+    padding: 6px 15px;
+    border-radius: 20px;
+    font-size: 0.9rem;
+    cursor: pointer;
+    border: 1px solid transparent;
 }
 
-.table-container {
-  overflow-x: auto;
+.tag-urgent {
+    background: #ffeaa7;
+    border-color: #f1c40f;
+    color: #d35400;
+    font-weight: bold;
 }
 
-.modal {
-  position: fixed;
-  top: 10%;
-  left: 10%;
-  width: 80%;
-  height: 80%;
-  background: white;
-  overflow: auto;
-  border: 2px solid #333;
-  padding: 10px
+.total-box {
+    background: #f8f9fa;
+    padding: 20px;
+    border-radius: 8px;
+    text-align: right;
+    margin-top: 25px;
+    border: 1px dashed #ccc;
 }
 
-.alertCell {
-  background-color: #ffdddd;
-  color: #d00;
-  font-weight: bold;
+.total-amount { font-size: 1.6rem; color: var(--urgent); font-weight: bold; }
+
+.btn-group { display: flex; flex-direction: column; gap: 12px; margin-top: 30px; }
+.btn-submit {
+    padding: 16px;
+    background: var(--primary);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-size: 1.1rem;
+    cursor: pointer;
 }
 
-button {
-  background-color: #0d6efd;
-  color: white;
-  border: none;
-  padding: 8px 16px;
-  font-size: 14px;
-  border-radius: 4px;
-  cursor: pointer;
-}
-button:hover {
-  background-color: #0b5ed7;
+.btn-cancel {
+    padding: 16px;
+    background: var(--gray);
+    color: white;
+    text-align: center;
+    text-decoration: none;
+    border-radius: 8px;
+    font-size: 1.1rem;
 }
 
-.emptyCell {
-  background-color: #f8f9fa;
-  color: #999;
-}
-
-
-#shiftGroupEditor {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 12px;
-}
-
-.group-block {
-  flex: 1 1 220px;
-  background: #f8f9fa;
-  padding: 10px;
-  border-radius: 6px;
-  min-width: 200px;
-}
-
-.modifiedCell {
-  background-color: #e6f2ff;
-}
-
-.revertedCell {
-  background-color: #d4edda;
-}
-
-#historyPanel {
-  background: #f9f9f9;
-  border: 1px solid #ccc;
-  padding: 1em;
-  margin-top: 1em;
-}
-
-.historyItem {
-  margin-bottom: 1em;
-}
-
-thead th {
-  background-color: #eee;
-  font-weight: bold;
-}
-
-tbody td {
-  background-color: #fff;
-}
-
-@media screen and (max-width: 768px) {
-  table {
-    font-size: 12px;
-  }
-
-  th, td {
-    padding: 4px;
-  }
-}
-
-.updatedCell {
-  background-color: #fff3cd;
-  transition: background-color 0.3s ease;
-}
-
-#historyPanel {
-  background: #f9f9f9;
-  border: 1px solid #ccc;
-  padding: 10px;
-  margin-top: 10px;
-}
-
-#historyTable {
-  width: 100%;
-  border-collapse: collapse;
-  margin-top: 10px;
-}
-
-#historyTable th, #historyTable td {
-  border: 1px solid #ccc;
-  padding: 6px;
-  text-align: center;
-}
-
+.btn-submit:hover { background: #2980b9; }
+.btn-cancel:hover { background: #7f8c8d; }
