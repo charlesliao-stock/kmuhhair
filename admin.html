@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>領班派工後台 - 醫院美髮部</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div class="admin-container">
+    <header class="admin-header">
+        <h2>美髮派遣管理端</h2>
+        <button id="logoutBtn" class="btn-small-gray">登出</button>
+    </header>
+
+    <div class="dashboard-grid">
+        <div class="stat-card">今日總單：<span id="stat-total">0</span></div>
+        <div class="stat-card urgent">待派遣：<span id="stat-pending">0</span></div>
+    </div>
+
+    <div class="section-title">即時待派遣清單</div>
+    <div id="pendingList" class="admin-list">
+        </div>
+
+    <div id="dispatchModal" class="modal">
+        <div class="modal-content">
+            <h3>指派美髮師</h3>
+            <div id="staffList"></div>
+            <button onclick="closeModal()" class="btn-cancel">取消</button>
+        </div>
+    </div>
+</div>
+
+<audio id="alertSound" src="https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3" preload="auto"></audio>
+
+<script type="module">
+    import { db, auth } from './firebase-config.js';
+    import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+    import { 
+        collection, query, where, onSnapshot, orderBy, doc, updateDoc, serverTimestamp, getDocs 
+    } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+    // 權限檢查
+    onAuthStateChanged(auth, (user) => {
+        if (!user) window.location.href = 'login.html';
+    });
+
+    const pendingList = document.getElementById('pendingList');
+    const alertSound = document.getElementById('alertSound');
+    let currentOrderId = null;
+
+    // 監聽待安排單 (status = 0)
+    const q = query(collection(db, "Orders"), where("status", "==", 0), orderBy("createdAt", "desc"));
+    
+    onSnapshot(q, (snapshot) => {
+        pendingList.innerHTML = '';
+        document.getElementById('stat-pending').innerText = snapshot.size;
+
+        if (snapshot.docChanges().some(c => c.type === "added")) {
+            alertSound.play().catch(()=>{}); // 播放音效
+        }
+
+        snapshot.forEach(docSnap => {
+            const data = docSnap.data();
+            const id = docSnap.id;
+            const isUrgent = data.tags.includes("今日出院") ? 'urgent-row' : '';
+
+            pendingList.innerHTML += `
+                <div class="admin-order-card ${isUrgent}">
+                    <div class="order-info">
+                        <strong>${data.room}</strong> | ${data.gender} <br>
+                        <small>${data.services.join('、')}</small>
+                    </div>
+                    <div class="order-tags">${data.tags.join(' ')}</div>
+                    <button onclick="openDispatch('${id}')" class="btn-dispatch">指派</button>
+                </div>
+            `;
+        });
+    });
+
+    // 指派功能邏輯
+    window.openDispatch = async (orderId) => {
+        currentOrderId = orderId;
+        document.getElementById('dispatchModal').style.display = 'flex';
+        const staffList = document.getElementById('staffList');
+        staffList.innerHTML = "載入人員中...";
+
+        // 這裡讀取 Users 集合中 role=stylist 的人
+        const staffSnap = await getDocs(collection(db, "Users"), where("role", "==", "stylist"));
+        staffList.innerHTML = '';
+        
+        staffSnap.forEach(sDoc => {
+            const staff = sDoc.data();
+            staffList.innerHTML += `
+                <button class="btn-staff-choice" onclick="assign('${sDoc.id}', '${staff.name}')">
+                    ${staff.name} (尚有 ${staff.load || 0} 單)
+                </button>
+            `;
+        });
+    };
+
+    window.assign = async (staffId, staffName) => {
+        if (!confirm(`確定指派給 ${staffName} 嗎？`)) return;
+        const ref = doc(db, "Orders", currentOrderId);
+        await updateDoc(ref, {
+            status: 1, // 已派工
+            stylistId: staffId,
+            stylistName: staffName,
+            dispatchedAt: serverTimestamp()
+        });
+        closeModal();
+        alert("指派成功");
+    };
+
+    window.closeModal = () => document.getElementById('dispatchModal').style.display = 'none';
+    document.getElementById('logoutBtn').addEventListener('click', () => signOut(auth));
+</script>
+</body>
+</html>
