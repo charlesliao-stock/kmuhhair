@@ -78,15 +78,13 @@
 
 <script type="module">
     import { db } from './firebase-config.js';
-    import { 
-        collection, getDocs, addDoc, doc, getDoc, serverTimestamp 
-    } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+    import { collection, getDocs, addDoc, doc, getDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
     let webConfig = null;
+    const daysArr = ["週一", "週二", "週三", "週四", "週五", "週六", "週日"];
 
     async function initPage() {
         try {
-            // 1. 設定日期預設值
             const today = new Date();
             const yyyy = today.getFullYear();
             const mm = String(today.getMonth() + 1).padStart(2, '0');
@@ -97,14 +95,12 @@
             dateInput.value = dateStr;
             dateInput.min = dateStr;
 
-            // 2. 載入網約設定 (包含班表時間)
             const configSnap = await getDoc(doc(db, "Settings", "WebConfig"));
             if (configSnap.exists()) {
                 webConfig = configSnap.data();
-                updateStylistDropdown(); // 初始化美髮師選單
+                updateStylistDropdown();
             }
 
-            // 3. 載入服務項目
             const serviceSnap = await getDocs(collection(db, "Settings/Services/Items"));
             const serviceList = document.getElementById('serviceList');
             serviceList.innerHTML = '';
@@ -121,7 +117,6 @@
                 `;
             });
 
-            // 4. 載入特殊需求
             const tagSnap = await getDocs(collection(db, "Settings/Tags/Items"));
             const tagList = document.getElementById('tagList');
             tagList.innerHTML = '';
@@ -138,25 +133,41 @@
                 `;
             });
 
-            // 5. 綁定動態監聽
             document.getElementById('serviceList').addEventListener('change', calculateTotal);
-            document.getElementById('bookDate').addEventListener('change', updateStylistDropdown);
+            document.getElementById('bookDate').addEventListener('change', handleDateChange);
             document.getElementById('bookSlot').addEventListener('change', updateStylistDropdown);
 
         } catch (e) { console.error("初始化失敗", e); }
     }
 
-    // 動態更新美髮師選單：根據日期與時段過濾上班人員
+    // 處理日期變更：檢查是否為營業日
+    async function handleDateChange() {
+        const dateVal = document.getElementById('bookDate').value;
+        if (!dateVal) return;
+
+        const selectedDate = new Date(dateVal);
+        let dayIndex = selectedDate.getDay() - 1; 
+        if (dayIndex === -1) dayIndex = 6;
+
+        const daySettings = webConfig ? webConfig[`day${dayIndex}`] : null;
+
+        if (daySettings && daySettings.isOpen === false) {
+            alert(`抱歉，${daysArr[dayIndex]} 為美髮部公休日，請選擇其他日期。`);
+            document.getElementById('bookDate').value = "";
+            return;
+        }
+        updateStylistDropdown();
+    }
+
     function updateStylistDropdown() {
         if (!webConfig) return;
         const dateVal = document.getElementById('bookDate').value;
         const slotVal = document.getElementById('bookSlot').value;
         const stylistSelect = document.getElementById('preferredStylist');
         
-        // 判定星期幾
         const d = new Date(dateVal);
         let dayIndex = d.getDay() - 1; 
-        if (dayIndex === -1) dayIndex = 6; // 週日處理
+        if (dayIndex === -1) dayIndex = 6;
 
         const dayData = webConfig[`day${dayIndex}`];
         const staffs = slotVal === "上午" ? (dayData?.amStaffs || []) : (dayData?.pmStaffs || []);
@@ -167,7 +178,6 @@
         });
     }
 
-    // 計算總金額並即時顯示
     function calculateTotal() {
         let total = 0;
         document.querySelectorAll('input[name="service"]:checked').forEach(el => {
@@ -176,7 +186,6 @@
         document.getElementById('totalDisplay').innerText = `$ ${total}`;
     }
 
-    // 驗證預約時間是否逾時 (依照 WebConfig 設定)
     function isBookingTimeValid(selectedDate, selectedSlot) {
         if (!webConfig) return true;
         const now = new Date();
@@ -185,13 +194,16 @@
         const dd = String(now.getDate()).padStart(2, '0');
         const todayStr = `${yyyy}-${mm}-${dd}`;
         
+        const d = new Date(selectedDate);
+        let dayIndex = d.getDay() - 1;
+        if (dayIndex === -1) dayIndex = 6;
+        const dayData = webConfig[`day${dayIndex}`];
+
+        // 檢查是否營業
+        if (dayData && dayData.isOpen === false) return false;
+        
         if (selectedDate === todayStr) {
             const currentTime = now.getHours() * 100 + now.getMinutes();
-            const d = new Date(selectedDate);
-            let dayIndex = d.getDay() - 1;
-            if (dayIndex === -1) dayIndex = 6;
-            const dayData = webConfig[`day${dayIndex}`];
-            
             let deadlineStr = selectedSlot === "上午" ? dayData?.amEnd : dayData?.pmEnd;
             let deadline = parseInt((deadlineStr || "16:00").replace(':', ''));
 
@@ -206,7 +218,7 @@
         const selectedSlot = document.getElementById('bookSlot').value;
 
         if (!isBookingTimeValid(selectedDate, selectedSlot)) {
-            alert("已超過網路預約的時間，請電洽美髮部，分機 5300。");
+            alert("已超過網路預約的時間，或該日不營業，請電洽美髮部，分機 5300。");
             return;
         }
 
