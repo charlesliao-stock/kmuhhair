@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>班表與網約設定 - 醫院美髮部</title>
+    <link rel="stylesheet" href="style.css">
+    <style>
+        .config-table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        .config-table th, .config-table td { border: 1px solid var(--border); padding: 12px; text-align: center; }
+        .staff-chip { display: inline-block; background: #e0f2fe; color: #0369a1; padding: 2px 8px; border-radius: 4px; margin: 2px; font-size: 0.85rem; }
+    </style>
+</head>
+<body>
+<div class="booking-card" style="max-width: 950px;">
+    <h2 class="main-title">系統循環設定</h2>
+
+    <div class="section-title">網約受理時間設定 (週循環)</div>
+    <div class="card-padding overflow-x">
+        <table class="config-table">
+            <thead>
+                <tr>
+                    <th>星期</th><th>上午迄止時間</th><th>下午迄止時間</th>
+                </tr>
+            </thead>
+            <tbody id="webConfigBody">
+                </tbody>
+        </table>
+    </div>
+
+    <div class="section-title">人員上班排班 (支援多人)</div>
+    <div class="card-padding overflow-x">
+        <table class="config-table">
+            <thead>
+                <tr>
+                    <th>星期</th><th>上午上班人員</th><th>下午上班人員</th>
+                </tr>
+            </thead>
+            <tbody id="scheduleBody">
+                </tbody>
+        </table>
+    </div>
+
+    <div class="btn-group">
+        <button onclick="saveAllSettings()" class="btn-submit">儲存所有設定</button>
+        <a href="admin_main.html" class="btn-cancel">回管理首頁</a>
+    </div>
+</div>
+
+<script type="module">
+    import { db } from './firebase-config.js';
+    import { doc, getDoc, setDoc, collection, getDocs } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+    const days = ["週一", "週二", "週三", "週四", "週五", "週六", "週日"];
+    let allStaff = [];
+
+    async function init() {
+        // 載入美髮師名單供排班選擇
+        const sSnap = await getDocs(collection(db, "Users"));
+        allStaff = sSnap.docs.filter(d => d.data().role === 'stylist').map(d => ({id: d.id, name: d.data().name}));
+
+        renderWebConfig();
+        renderSchedule();
+        
+        // 載入現有設定
+        const cfgSnap = await getDoc(doc(db, "Settings", "WebConfig"));
+        if(cfgSnap.exists()) fillData(cfgSnap.data());
+    }
+
+    function renderWebConfig() {
+        const body = document.getElementById('webConfigBody');
+        body.innerHTML = days.map((day, i) => `
+            <tr>
+                <td>${day}</td>
+                <td><input type="time" id="amEnd-${i}" value="11:30"></td>
+                <td><input type="time" id="pmEnd-${i}" value="16:00"></td>
+            </tr>
+        `).join('');
+    }
+
+    function renderSchedule() {
+        const body = document.getElementById('scheduleBody');
+        body.innerHTML = days.map((day, i) => `
+            <tr>
+                <td>${day}</td>
+                <td>${renderStaffSelect('am', i)}</td>
+                <td>${renderStaffSelect('pm', i)}</td>
+            </tr>
+        `).join('');
+    }
+
+    function renderStaffSelect(slot, dayIndex) {
+        // 簡單呈現：複選框列表
+        return allStaff.map(s => `
+            <label style="font-size:0.8rem; display:block; text-align:left;">
+                <input type="checkbox" class="sched-check" data-day="${dayIndex}" data-slot="${slot}" value="${s.name}"> ${s.name}
+            </label>
+        `).join('');
+    }
+
+    window.saveAllSettings = async () => {
+        const config = {};
+        days.forEach((_, i) => {
+            config[`day${i}`] = {
+                amEnd: document.getElementById(`amEnd-${i}`).value,
+                pmEnd: document.getElementById(`pmEnd-${i}`).value,
+                amStaffs: Array.from(document.querySelectorAll(`.sched-check[data-day="${i}"][data-slot="am"]:checked`)).map(el => el.value),
+                pmStaffs: Array.from(document.querySelectorAll(`.sched-check[data-day="${i}"][data-slot="pm"]:checked`)).map(el => el.value)
+            };
+        });
+
+        await setDoc(doc(db, "Settings", "WebConfig"), config);
+        alert("設定儲存成功！");
+    };
+
+    init();
+</script>
+</body>
+</html>
