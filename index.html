@@ -1,164 +1,69 @@
 <!DOCTYPE html>
-<html lang="zh-Hant">
+<html lang="zh-TW">
 <head>
-  <meta charset="UTF-8" />
-  <title>四週變形工時、月排班檢查工具(測試版)</title>
-  <link rel="stylesheet" href="style.css" />
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-  <script src="excelExporter.js"></script>
-  <style>
-    #settingPanel {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      flex-wrap: wrap;
-      margin-bottom: 10px;
-      gap: 10px;
-    }
-
-    #selectors label,
-    #selectors select {
-      margin-right: 10px;
-    }
-
-    #actionButtons button {
-      margin-left: 10px;
-    }
-
-    #actionButtons {
-      display: flex;
-      align-items: center;
-    }
-
-    #historyPanel {
-      margin-top: 10px;
-    }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>醫院美髮部服務系統</title>
+    <link rel="stylesheet" href="style.css">
+    <style>
+        /* 簡單的首頁內建樣式 */
+        body {
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            background-color: #f0f4f8;
+            font-family: "Microsoft JhengHei", Arial, sans-serif;
+        }
+        .container {
+            text-align: center;
+            background: white;
+            padding: 40px 20px;
+            border-radius: 15px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+            width: 90%;
+            max-width: 400px;
+        }
+        h1 { color: #2c3e50; margin-bottom: 30px; }
+        .nav-btn {
+            display: block;
+            width: 100%;
+            padding: 18px;
+            margin: 15px 0;
+            font-size: 1.2rem;
+            color: white;
+            text-decoration: none;
+            border-radius: 10px;
+            transition: transform 0.2s, background 0.3s;
+            box-sizing: border-box;
+        }
+        .nav-btn:active { transform: scale(0.98); }
+        .btn-booking { background-color: #3498db; }
+        .btn-search { background-color: #2ecc71; }
+        .btn-login { background-color: #95a5a6; margin-top: 40px; font-size: 1rem; }
+        .footer { margin-top: 20px; font-size: 0.85rem; color: #7f8c8d; }
+    </style>
 </head>
 <body>
-  <h1>四週變形工時、月排班檢查工具(測試版)</h1>
 
-  <div id="info-toggle">※說明 (點擊展開/收合)</div>
-  <div id="info-content" style="display:none;">
-    <!-- 說明內容略，與原版相同 -->
-  </div>
-
-  <div id="modeSelector">
-    <label><input type="checkbox" id="checkboxWeekly" /> 四週變形工時</label>
-    <label><input type="checkbox" id="checkboxMonthly" /> 月排班</label>
-  </div>
-
-  <div id="settingPanel">
-    <div id="selectors">
-      <label for="periodStartSelector">📅 檢查起始日：</label>
-      <select id="periodStartSelector"></select>
-
-      <label for="periodCountSelector">🔢 週期數：</label>
-      <select id="periodCountSelector"></select>
-
-      <label for="monthSelector">🗓️ 檢查月份：</label>
-      <select id="monthSelector"></select>
+<div class="container">
+    <h1>醫院美髮部<br>服務預約系統</h1>
+    
+    <a href="booking.html" class="nav-btn btn-booking">即刻預約服務</a>
+    <a href="search.html" class="nav-btn btn-search">查詢 / 取消預約</a>
+    
+    <hr style="border: 0; border-top: 1px solid #eee; margin: 20px 0;">
+    
+    <a href="login.html" class="nav-btn btn-login">美髮部員工登入</a>
+    
+    <div class="footer">
+        服務時間：週一至週五 08:30 - 17:30<br>
+        (夜間時段目前暫未開放)
     </div>
+</div>
 
-    <div id="actionButtons">
-      <button onclick="exportScheduleToExcel()">📤 匯出班表結果</button>
-      <button onclick="ShiftGroupEditor.toggleSettingPanel()">⚙️ 設定</button>
-      <button id="historyToggleBtn" onclick="TableHistory.toggleHistoryPanel()">📋 異動歷史</button>
-    </div>
-  </div>
-
-  <input type="file" id="excelFile" accept=".xls,.xlsx" />
-
-  <!-- 📋 異動歷史面板（緊貼按鈕下方） -->
-  <div id="historyPanel" style="display:none;">
-    <table id="historyTable">
-      <thead>
-        <tr>
-          <th>✔️</th>
-          <th>姓名</th>
-          <th>日期</th>
-          <th>異動前</th>
-          <th>異動後</th>
-        </tr>
-      </thead>
-      <tbody id="historyTableBody"></tbody>
-    </table>
-    <button onclick="TableHistory.restoreSelected()">🔄 復原勾選項目</button>
-  </div>
-
-  <div id="customShiftSetting" style="display:none;">
-    <h3>自訂班別代號（週期與月統計共用）</h3>
-    <div id="shiftGroupEditor"></div>
-    <button onclick="ShiftGroupEditor.saveShiftGroups()">💾 儲存設定</button>
-  </div>
-
-  <div id="weeklyTableContainer" class="table-container"></div>
-  <div id="monthlyTableContainer" class="table-container"></div>
-
-  <!-- 模組化 JS -->
-  <script src="config.js"></script>
-  <script src="periodStartSelector.js"></script>
-  <script src="periodCountSelector.js"></script>
-  <script src="monthSelector.js"></script>
-  <script src="ui.js"></script>
-  <script src="excelLoader.js"></script>
-  <script src="dateUtils.js"></script>
-  <script src="styleUtils.js"></script>
-  <script src="cellSync.js"></script>
-  <script src="tableBuilder.js"></script>
-  <script src="scheduleRenderer.js"></script>
-  <script src="checker.js"></script>
-  <script src="modeSelector.js"></script>
-  <script src="shiftGroupEditor.js"></script>
-  <script src="tableHistory.js"></script>
-
-  <script>
-    window.onload = function () {
-      const today = new Date();
-      renderPeriodStartSelector(today);
-      renderPeriodCountSelector();
-      renderMonthSelector();
-      initModeSelector();
-
-      window.scheduleState = {
-        startDate: document.getElementById("periodStartSelector").value,
-        periodCount: parseInt(document.getElementById("periodCountSelector").value, 10),
-        monthStr: document.getElementById("monthSelector").value,
-        selectedRows: []
-      };
-    };
-
-    ["periodCountSelector", "periodStartSelector", "monthSelector"].forEach(id => {
-      document.getElementById(id).addEventListener("change", () => {
-        const state = window.scheduleState;
-        state.startDate = document.getElementById("periodStartSelector").value;
-        state.periodCount = parseInt(document.getElementById("periodCountSelector").value, 10);
-        state.monthStr = document.getElementById("monthSelector").value;
-
-        if (state.selectedRows.length && typeof window.renderScheduleTable === "function") {
-          window.renderScheduleTable(state.selectedRows);
-        }
-      });
-    });
-
-    document.getElementById("excelFile").addEventListener("change", function () {
-      if (this.files.length > 0) {
-        handleExcelImport();
-      }
-    });
-
-    ["checkboxWeekly", "checkboxMonthly"].forEach(id => {
-      document.getElementById(id).addEventListener("change", () => {
-        if (window.scheduleState?.selectedRows?.length) {
-          window.renderScheduleTable(window.scheduleState.selectedRows);
-        }
-      });
-    });
-
-    document.getElementById("info-toggle").addEventListener("click", function () {
-      const infoContent = document.getElementById("info-content");
-      infoContent.style.display = (infoContent.style.display === "none" || infoContent.style.display === "") ? "block" : "none";
-    });
-  </script>
 </body>
 </html>
