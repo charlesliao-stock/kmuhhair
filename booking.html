@@ -185,6 +185,34 @@
     });
 
     initPage();
+    // 在 booking.html 的 <script type="module"> 裡面最後面加上這幾行
+import { doc, writeBatch } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+window.initDB = async () => {
+    const batch = writeBatch(db);
+    
+    // 定義服務項目
+    const services = [
+        { id: 's1', name: '剪髮', price: 200 },
+        { id: 's2', name: '洗髮', price: 300 },
+        { id: 's3', name: '理髮(手術用)', price: 150 }
+    ];
+    services.forEach(s => {
+        batch.set(doc(db, "Settings/Services/Items", s.id), { name: s.name, price: s.price });
+    });
+
+    // 定義標籤
+    const tags = [{ id: 't1', name: '今日出院' }, { id: 't2', name: '需在床上洗' }];
+    tags.forEach(t => {
+        batch.set(doc(db, "Settings/Tags/Items", t.id), { name: t.name });
+    });
+
+    // 定義基礎設定
+    batch.set(doc(db, "Settings/WebConfig"), { isWebOpen: true });
+
+    await batch.commit();
+    console.log("資料庫初始化成功！");
+};
 </script>
 </body>
 </html>
