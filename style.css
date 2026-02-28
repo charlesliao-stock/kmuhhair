@@ -1,108 +1,104 @@
-/* style.css 修正版 */
+/* style.css */
 :root {
     --primary: #3498db;
     --secondary: #2ecc71;
     --urgent: #e74c3c;
-    --gray: #95a5a6;
-    --bg: #f8f9fa;
+    --bg: #f4f7f9;
+    --card-bg: #ffffff;
 }
 
-body {
-    font-family: "Microsoft JhengHei", sans-serif;
-    background-color: var(--bg);
-    padding: 20px;
-    margin: 0;
-}
+body { font-family: "Microsoft JhengHei", sans-serif; background: var(--bg); padding: 15px; }
 
 .booking-card {
-    background: white;
-    max-width: 500px;
-    margin: 20px auto;
-    padding: 30px;
-    border-radius: 12px;
-    box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+    background: var(--card-bg); max-width: 550px; margin: auto; padding: 25px;
+    border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.08);
 }
 
-h2 { text-align: center; color: #2c3e50; }
+h2 { text-align: center; color: #2c3e50; margin-bottom: 25px; }
 
 .section-title {
-    font-size: 1rem;
-    font-weight: bold;
-    margin: 25px 0 12px;
-    border-left: 4px solid var(--primary);
-    padding-left: 10px;
+    font-size: 1rem; font-weight: bold; margin: 20px 0 12px;
+    border-left: 4px solid var(--primary); padding-left: 10px;
 }
 
-.form-group { margin-bottom: 15px; }
-label { display: block; margin-bottom: 5px; font-weight: bold; }
+/* 一行兩個的容器 */
+.flex-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px; /* 卡片間距 */
+    justify-content: space-between;
+}
 
-input, select, textarea {
-    width: 100%;
+/* 統一的卡片樣式 (項目與特殊需求一致) */
+.item-card {
+    flex: 0 0 48%; /* 寬度約 48%，達成一行兩個 */
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    background: #fff;
+    border: 1px solid #e0e6ed;
     padding: 12px;
-    border: 1px solid #ddd;
-    border-radius: 6px;
+    border-radius: 8px;
+    cursor: pointer;
     box-sizing: border-box;
-    font-size: 1rem;
-}
-/* 服務項目容器 */
-.service-item {
-    display: flex;
-    justify-content: space-between; /* 左右撐開 */
-    align-items: center;           /* 垂直置中 */
-    background: #fdfdfd;
-    border: 1px solid #eee;
-    padding: 12px;
-    border-radius: 6px;
-    margin-bottom: 8px;
-    cursor: pointer;
+    transition: all 0.2s;
 }
 
-/* 左側：勾選框 + 名稱 */
-.service-info {
-    display: flex;
-    align-items: center;           /* 確保勾選框與文字對齊 */
-    white-space: nowrap;           /* 禁止換行 */
-}
+.item-card:hover { border-color: var(--primary); background: #f0f7ff; }
 
-.service-info input[type="checkbox"] {
-    width: 18px;
-    height: 18px;
-    margin: 0 10px 0 0;            /* 只有右邊有間距 */
-    cursor: pointer;
-    flex-shrink: 0;                /* 防止勾選框被壓縮 */
-}
-
-.service-name {
-    font-size: 1rem;
-    color: #2c3e50;
-}
-
-/* 右側：金額 */
-.price-label {
-    font-weight: bold;
-    color: #3498db;
-    margin-left: 10px;
-    white-space: nowrap;
-}
-
-/* 預約日期與時段的排列 */
-.datetime-group {
-    display: flex;
-    gap: 10px;
-}
-
-/* 特殊需求標籤也防止斷行 */
-.tag-item {
+/* 勾選框與文字不換行 */
+.item-top {
     display: flex;
     align-items: center;
     white-space: nowrap;
-    padding: 6px 15px;
-    background: #f1f2f6;
-    border-radius: 20px;
-    cursor: pointer;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
-.tag-item input {
-    margin-right: 6px;
+.item-top input[type="checkbox"] {
+    width: 18px; height: 18px; margin-right: 8px; flex-shrink: 0;
 }
 
+.item-name { font-size: 0.95rem; color: #333; }
+
+/* 金額樣式 */
+.item-price {
+    text-align: right;
+    font-weight: bold;
+    color: var(--primary);
+    margin-top: 5px;
+}
+
+/* 出院標籤特殊處理 */
+.urgent-card { background: #fff9f0; border-color: #ffdcb0; }
+.urgent-card .item-name { color: #d35400; font-weight: bold; }
+
+/* 按鈕美化 */
+.btn-group {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-top: 30px;
+}
+
+.btn-submit {
+    padding: 16px; background: var(--primary); color: white; border: none;
+    border-radius: 8px; font-size: 1.1rem; cursor: pointer; font-weight: bold;
+    box-shadow: 0 4px 6px rgba(52, 152, 219, 0.2);
+}
+
+.btn-submit:hover { background: #2980b9; transform: translateY(-1px); }
+
+.btn-cancel {
+    padding: 16px; background: #95a5a6; color: white; text-align: center;
+    text-decoration: none; border-radius: 8px; font-size: 1.1rem;
+    transition: background 0.2s;
+}
+
+.btn-cancel:hover { background: #7f8c8d; }
+
+.total-box {
+    background: #f8f9fa; padding: 15px; border-radius: 8px;
+    text-align: right; margin-top: 20px; border: 1px dashed #ced4da;
+}
+.total-amount { font-size: 1.5rem; color: var(--urgent); font-weight: bold; }
