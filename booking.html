@@ -36,6 +36,10 @@
             <p class="loading-text">正在載入服務項目...</p>
         </div>
 
+        <div class="total-box" style="margin-top: 15px;">
+            預計服務金額：<span class="total-amount" id="totalDisplay">$ 0</span>
+        </div>
+
         <div class="section-title">預約日期與時段</div>
         <div class="datetime-group">
             <input type="date" id="bookDate" required>
@@ -50,7 +54,7 @@
             <div class="item-card" style="flex: 0 0 100%;">
                 <div class="item-left" style="width: 100%;">
                     <span class="item-name" style="margin-right: 15px; flex-shrink: 0;">選擇美髮師</span>
-                    <select id="preferredStylist" style="border: none; background: transparent; padding: 0;">
+                    <select id="preferredStylist" style="border: none; background: transparent; padding: 0; width: 100%; font-size: 0.95rem; color: var(--text);">
                         <option value="">不指定 (由系統分配)</option>
                     </select>
                 </div>
@@ -63,10 +67,6 @@
         <div class="form-group" style="margin-top:20px;">
             <label for="note" class="sub-label">其他備註 (開放填寫)</label>
             <textarea id="note" rows="3" placeholder="如有其他特殊狀況請註明..."></textarea>
-        </div>
-
-        <div class="total-box">
-            預計總金額：<span class="total-amount" id="totalDisplay">$ 0</span>
         </div>
 
         <div class="btn-group">
@@ -88,16 +88,20 @@
         try {
             // 1. 設定日期預設值
             const today = new Date();
-            const dateStr = today.toISOString().split('T')[0];
+            const yyyy = today.getFullYear();
+            const mm = String(today.getMonth() + 1).padStart(2, '0');
+            const dd = String(today.getDate()).padStart(2, '0');
+            const dateStr = `${yyyy}-${mm}-${dd}`;
+            
             const dateInput = document.getElementById('bookDate');
             dateInput.value = dateStr;
             dateInput.min = dateStr;
 
-            // 2. 載入網約設定
+            // 2. 載入網約設定 (包含班表時間)
             const configSnap = await getDoc(doc(db, "Settings", "WebConfig"));
             if (configSnap.exists()) {
                 webConfig = configSnap.data();
-                updateStylistDropdown(); // 初始化下拉選單
+                updateStylistDropdown(); // 初始化美髮師選單
             }
 
             // 3. 載入服務項目
@@ -134,25 +138,25 @@
                 `;
             });
 
-            // 監聽器：當日期或時段改變，更新美髮師選單
+            // 5. 綁定動態監聽
+            document.getElementById('serviceList').addEventListener('change', calculateTotal);
             document.getElementById('bookDate').addEventListener('change', updateStylistDropdown);
             document.getElementById('bookSlot').addEventListener('change', updateStylistDropdown);
-            document.getElementById('serviceList').addEventListener('change', calculateTotal);
 
         } catch (e) { console.error("初始化失敗", e); }
     }
 
-    // 更新美髮師下拉選單邏輯
+    // 動態更新美髮師選單：根據日期與時段過濾上班人員
     function updateStylistDropdown() {
         if (!webConfig) return;
         const dateVal = document.getElementById('bookDate').value;
         const slotVal = document.getElementById('bookSlot').value;
         const stylistSelect = document.getElementById('preferredStylist');
         
-        // 獲取星期幾 (0-6, 0是週日) -> 轉換為資料庫索引 (週一為day0, 週日為day6)
+        // 判定星期幾
         const d = new Date(dateVal);
         let dayIndex = d.getDay() - 1; 
-        if (dayIndex === -1) dayIndex = 6; // 處理週日
+        if (dayIndex === -1) dayIndex = 6; // 週日處理
 
         const dayData = webConfig[`day${dayIndex}`];
         const staffs = slotVal === "上午" ? (dayData?.amStaffs || []) : (dayData?.pmStaffs || []);
@@ -163,6 +167,7 @@
         });
     }
 
+    // 計算總金額並即時顯示
     function calculateTotal() {
         let total = 0;
         document.querySelectorAll('input[name="service"]:checked').forEach(el => {
@@ -171,10 +176,15 @@
         document.getElementById('totalDisplay').innerText = `$ ${total}`;
     }
 
+    // 驗證預約時間是否逾時 (依照 WebConfig 設定)
     function isBookingTimeValid(selectedDate, selectedSlot) {
         if (!webConfig) return true;
         const now = new Date();
-        const todayStr = now.toISOString().split('T')[0];
+        const yyyy = now.getFullYear();
+        const mm = String(now.getMonth() + 1).padStart(2, '0');
+        const dd = String(now.getDate()).padStart(2, '0');
+        const todayStr = `${yyyy}-${mm}-${dd}`;
+        
         if (selectedDate === todayStr) {
             const currentTime = now.getHours() * 100 + now.getMinutes();
             const d = new Date(selectedDate);
@@ -216,7 +226,7 @@
                 tags: Array.from(document.querySelectorAll('input[name="tag"]:checked')).map(el => el.value),
                 bookDate: selectedDate,
                 bookSlot: selectedSlot,
-                preferredStylist: document.getElementById('preferredStylist').value, // 新增此欄位
+                preferredStylist: document.getElementById('preferredStylist').value,
                 status: 0,
                 totalAmount: parseInt(document.getElementById('totalDisplay').innerText.replace('$ ','')),
                 createdAt: serverTimestamp()
@@ -224,8 +234,9 @@
             alert("預約成功！");
             window.location.href = "index.html";
         } catch (err) {
-            alert("預約失敗");
+            alert("預約失敗，請稍後再試。");
             btn.disabled = false;
+            btn.innerText = "確認送出預約";
         }
     });
 
