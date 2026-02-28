@@ -9,24 +9,26 @@
 <body>
 
 <div class="booking-card">
-    <h2>填寫服務預約</h2>
+    <h2 class="main-title">預約美髮服務</h2>
+    
     <form id="bookingForm">
-        <div class="form-group">
-            <label for="room">病房 / 床號</label>
-            <input type="text" id="room" required placeholder="例如: 7F 702-1">
-        </div>
-
-        <div class="form-group">
-            <label for="gender">性別</label>
-            <select id="gender">
-                <option value="女">女</option>
-                <option value="男">男</option>
-            </select>
-        </div>
-
-        <div class="form-group">
-            <label for="phone">連絡電話</label>
-            <input type="tel" id="phone" required placeholder="請輸入聯絡手機">
+        <div class="section-title">病人資訊</div>
+        <div class="info-grid">
+            <div class="form-group">
+                <label for="room">病房 / 床號</label>
+                <input type="text" id="room" required placeholder="例如: 7F 702-1">
+            </div>
+            <div class="form-group">
+                <label for="gender">性別</label>
+                <select id="gender">
+                    <option value="女">女</option>
+                    <option value="男">男</option>
+                </select>
+            </div>
+            <div class="form-group full-width">
+                <label for="phone">連絡電話</label>
+                <input type="tel" id="phone" required placeholder="請輸入聯絡手機">
+            </div>
         </div>
 
         <div class="section-title">服務項目 (可複選)</div>
@@ -47,8 +49,8 @@
         <div id="tagList" class="flex-container">
             </div>
 
-        <div class="form-group" style="margin-top:15px;">
-            <label for="note">其他備註 (開放填寫)</label>
+        <div class="form-group" style="margin-top:20px;">
+            <label for="note" class="sub-label">其他備註 (開放填寫)</label>
             <textarea id="note" rows="3" placeholder="如有其他特殊狀況請註明..."></textarea>
         </div>
 
@@ -76,7 +78,6 @@
             document.getElementById('bookDate').value = `${yyyy}-${mm}-${dd}`;
             document.getElementById('bookDate').min = `${yyyy}-${mm}-${dd}`;
 
-            // 載入服務項目
             const serviceSnap = await getDocs(collection(db, "Settings/Services/Items"));
             const serviceList = document.getElementById('serviceList');
             serviceList.innerHTML = '';
@@ -84,16 +85,15 @@
                 const data = docSnap.data();
                 serviceList.innerHTML += `
                     <label class="item-card">
-                        <div class="item-top">
+                        <div class="item-left">
                             <input type="checkbox" name="service" value="${data.name}" data-price="${data.price}">
                             <span class="item-name">${data.name}</span>
                         </div>
-                        <div class="item-price">$${data.price}</div>
+                        <span class="item-price">$${data.price}</span>
                     </label>
                 `;
             });
 
-            // 載入特殊需求 (樣式調整為與項目一致)
             const tagSnap = await getDocs(collection(db, "Settings/Tags/Items"));
             const tagList = document.getElementById('tagList');
             tagList.innerHTML = '';
@@ -102,7 +102,7 @@
                 const isUrgent = data.name.includes("出院") ? 'urgent-card' : '';
                 tagList.innerHTML += `
                     <label class="item-card ${isUrgent}">
-                        <div class="item-top">
+                        <div class="item-left">
                             <input type="checkbox" name="tag" value="${data.name}">
                             <span class="item-name">${data.name}</span>
                         </div>
@@ -128,7 +128,7 @@
         const services = Array.from(document.querySelectorAll('input[name="service"]:checked')).map(el => el.value);
         if (services.length === 0) { alert("請至少選擇一項服務項目"); return; }
         btn.disabled = true;
-        btn.innerText = "傳送中...";
+        btn.innerText = "正在送出...";
         try {
             await addDoc(collection(db, "Orders"), {
                 room: document.getElementById('room').value,
@@ -145,7 +145,7 @@
             });
             alert("預約成功！");
             window.location.href = "index.html";
-        } catch (err) { alert("失敗"); btn.disabled = false; }
+        } catch (err) { alert("系統錯誤，請電洽分機"); btn.disabled = false; }
     });
     initPage();
 </script>
