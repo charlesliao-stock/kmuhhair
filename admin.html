@@ -3,118 +3,153 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>領班派工後台 - 醫院美髮部</title>
+    <title>系統管理後台 - 醫院美髮部</title>
     <link rel="stylesheet" href="style.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
-<body>
+<body class="admin-layout">
 
-<div class="admin-container">
-    <header class="admin-header">
-        <h2>美髮派遣管理端</h2>
-        <button id="logoutBtn" class="btn-small-gray">登出</button>
-    </header>
+<aside class="sidebar">
+    <h3>系統管理</h3>
+    <nav>
+        <button onclick="switchTab('dispatch')">需求派遣</button>
+        <button onclick="switchTab('staff')">人員管理</button>
+        <button onclick="switchTab('scheduling')">排班管理</button>
+        <button onclick="switchTab('web-config')">網約管理</button>
+        <button onclick="switchTab('stats')">數據統計</button>
+    </nav>
+    <button id="logoutBtn" class="btn-cancel" style="margin-top: auto;">登出</button>
+</aside>
 
-    <div class="dashboard-grid">
-        <div class="stat-card">今日總單：<span id="stat-total">0</span></div>
-        <div class="stat-card urgent">待派遣：<span id="stat-pending">0</span></div>
-    </div>
+<main class="content-area">
+    <section id="tab-dispatch" class="tab-content active">
+        <div class="section-title">即時派遣任務</div>
+        <div id="pendingList" class="flex-container"></div>
+    </section>
 
-    <div class="section-title">即時待派遣清單</div>
-    <div id="pendingList" class="admin-list">
+    <section id="tab-staff" class="tab-content">
+        <div class="section-title">人員管理</div>
+        <div class="card">
+            <div class="info-grid">
+                <input type="text" id="staffName" placeholder="員工姓名">
+                <input type="email" id="staffEmail" placeholder="Email (登入帳號)">
+                <button onclick="addStaff()" class="btn-submit">新增人員</button>
+            </div>
+            <table class="admin-table">
+                <thead><tr><th>姓名</th><th>Email</th><th>操作</th></tr></thead>
+                <tbody id="staffTableBody"></tbody>
+            </table>
         </div>
+    </section>
 
-    <div id="dispatchModal" class="modal">
-        <div class="modal-content">
-            <h3>指派美髮師</h3>
-            <div id="staffList"></div>
-            <button onclick="closeModal()" class="btn-cancel">取消</button>
+    <section id="tab-scheduling" class="tab-content">
+        <div class="section-title">人員循環週班表</div>
+        <div class="card overflow-x">
+            <table class="schedule-table">
+                <thead id="scheduleHead"></thead>
+                <tbody id="scheduleBody"></tbody>
+            </table>
+            <button onclick="saveSchedule()" class="btn-submit" style="margin-top:15px;">儲存班表設定</button>
         </div>
-    </div>
-</div>
+    </section>
 
-<audio id="alertSound" src="https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3" preload="auto"></audio>
+    <section id="tab-web-config" class="tab-content">
+        <div class="section-title">網約循環週設定</div>
+        <div class="card">
+            <table class="schedule-table">
+                <thead id="webConfigHead"></thead>
+                <tbody id="webConfigBody"></tbody>
+            </table>
+            <button onclick="saveWebConfig()" class="btn-submit" style="margin-top:15px;">儲存網約設定</button>
+        </div>
+    </section>
+
+    <section id="tab-stats" class="tab-content">
+        <div class="section-title">數據統計報表</div>
+        <div class="info-grid" style="margin-bottom:20px;">
+            <select id="statsRange">
+                <option value="day">今日</option>
+                <option value="week">本週</option>
+                <option value="month">本月</option>
+                <option value="quarter">本季</option>
+                <option value="year">今年</option>
+            </select>
+            <button onclick="loadStats()" class="btn-submit">產生報表</button>
+        </div>
+        <div class="card">
+            <canvas id="statsChart"></canvas>
+        </div>
+    </section>
+</main>
 
 <script type="module">
     import { db, auth } from './firebase-config.js';
-    import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
-    import { 
-        collection, query, where, onSnapshot, orderBy, doc, updateDoc, serverTimestamp, getDocs 
-    } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+    import { collection, doc, getDocs, setDoc, updateDoc, deleteDoc, query, where, onSnapshot } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
-    // 權限檢查
-    onAuthStateChanged(auth, (user) => {
-        if (!user) window.location.href = 'login.html';
-    });
+    // --- Tab 切換邏輯 ---
+    window.switchTab = (tabId) => {
+        document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+        document.getElementById(`tab-${tabId}`).classList.add('active');
+        if(tabId === 'scheduling') loadScheduleData();
+        if(tabId === 'staff') loadStaffList();
+    };
 
-    const pendingList = document.getElementById('pendingList');
-    const alertSound = document.getElementById('alertSound');
-    let currentOrderId = null;
-
-    // 監聽待安排單 (status = 0)
-    const q = query(collection(db, "Orders"), where("status", "==", 0), orderBy("createdAt", "desc"));
-    
-    onSnapshot(q, (snapshot) => {
-        pendingList.innerHTML = '';
-        document.getElementById('stat-pending').innerText = snapshot.size;
-
-        if (snapshot.docChanges().some(c => c.type === "added")) {
-            alertSound.play().catch(()=>{}); // 播放音效
-        }
-
-        snapshot.forEach(docSnap => {
-            const data = docSnap.data();
-            const id = docSnap.id;
-            const isUrgent = data.tags.includes("今日出院") ? 'urgent-row' : '';
-
-            pendingList.innerHTML += `
-                <div class="admin-order-card ${isUrgent}">
-                    <div class="order-info">
-                        <strong>${data.room}</strong> | ${data.gender} <br>
-                        <small>${data.services.join('、')}</small>
-                    </div>
-                    <div class="order-tags">${data.tags.join(' ')}</div>
-                    <button onclick="openDispatch('${id}')" class="btn-dispatch">指派</button>
-                </div>
-            `;
+    // --- 人員管理邏輯 ---
+    window.loadStaffList = async () => {
+        const snap = await getDocs(query(collection(db, "Users"), where("role", "==", "stylist")));
+        const body = document.getElementById('staffTableBody');
+        body.innerHTML = '';
+        snap.forEach(sDoc => {
+            const d = sDoc.data();
+            body.innerHTML += `<tr><td>${d.name}</td><td>${d.email}</td><td><button onclick="deleteStaff('${sDoc.id}')">刪除</button></td></tr>`;
         });
-    });
+    };
 
-    // 指派功能邏輯
-    window.openDispatch = async (orderId) => {
-        currentOrderId = orderId;
-        document.getElementById('dispatchModal').style.display = 'flex';
-        const staffList = document.getElementById('staffList');
-        staffList.innerHTML = "載入人員中...";
+    // --- 排班管理 (循環週) ---
+    const days = ['週一', '週二', '週三', '週四', '週五', '週六', '週日'];
+    window.loadScheduleData = async () => {
+        const head = document.getElementById('scheduleHead');
+        const body = document.getElementById('scheduleBody');
+        const staffSnap = await getDocs(query(collection(db, "Users"), where("role", "==", "stylist")));
+        const staffs = staffSnap.docs.map(d => ({id: d.id, name: d.data().name}));
 
-        // 這裡讀取 Users 集合中 role=stylist 的人
-        const staffSnap = await getDocs(collection(db, "Users"), where("role", "==", "stylist"));
-        staffList.innerHTML = '';
+        head.innerHTML = `<tr><th>時段</th>${days.map(d => `<th>${d}</th>`).join('')}</tr>`;
         
-        staffSnap.forEach(sDoc => {
-            const staff = sDoc.data();
-            staffList.innerHTML += `
-                <button class="btn-staff-choice" onclick="assign('${sDoc.id}', '${staff.name}')">
-                    ${staff.name} (尚有 ${staff.load || 0} 單)
-                </button>
-            `;
-        });
+        let html = `<tr><td>是否營業</td>${days.map((d, i) => `<td><input type="checkbox" id="open-${i}"></td>`).join('')}</tr>`;
+        html += `<tr><td>上午人員</td>${days.map((d, i) => `<td><select id="am-${i}">${staffs.map(s => `<option value="${s.id}">${s.name}</option>`).join('')}</select></td>`).join('')}</tr>`;
+        html += `<tr><td>下午人員</td>${days.map((d, i) => `<td><select id="pm-${i}">${staffs.map(s => `<option value="${s.id}">${s.name}</option>`).join('')}</select></td>`).join('')}</tr>`;
+        body.innerHTML = html;
     };
 
-    window.assign = async (staffId, staffName) => {
-        if (!confirm(`確定指派給 ${staffName} 嗎？`)) return;
-        const ref = doc(db, "Orders", currentOrderId);
-        await updateDoc(ref, {
-            status: 1, // 已派工
-            stylistId: staffId,
-            stylistName: staffName,
-            dispatchedAt: serverTimestamp()
+    // --- 統計功能 (Chart.js) ---
+    let myChart;
+    window.loadStats = async () => {
+        const range = document.getElementById('statsRange').value;
+        // 這裡應根據 range 計算日期區間並從 Firestore 撈取資料
+        // 以下為示範靜態數據
+        const ctx = document.getElementById('statsChart').getContext('2d');
+        if(myChart) myChart.destroy();
+        myChart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: ['王大明', '李小美', '陳阿姨'],
+                datasets: [{ label: '完工件數', data: [12, 19, 3], backgroundColor: '#3498db' }]
+            }
         });
-        closeModal();
-        alert("指派成功");
     };
-
-    window.closeModal = () => document.getElementById('dispatchModal').style.display = 'none';
-    document.getElementById('logoutBtn').addEventListener('click', () => signOut(auth));
 </script>
+
+<style>
+    .admin-layout { display: flex; min-height: 100vh; background: #f0f2f5; }
+    .sidebar { width: 200px; background: #2c3e50; color: white; padding: 20px; display: flex; flex-direction: column; }
+    .sidebar button { background: none; border: none; color: #bdc3c7; padding: 15px; text-align: left; cursor: pointer; font-size: 1rem; border-bottom: 1px solid #34495e; }
+    .sidebar button:hover { color: white; background: #34495e; }
+    .content-area { flex: 1; padding: 30px; }
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+    .admin-table, .schedule-table { width: 100%; border-collapse: collapse; background: white; }
+    .admin-table th, .admin-table td, .schedule-table th, .schedule-table td { border: 1px solid #eee; padding: 12px; text-align: center; }
+    .overflow-x { overflow-x: auto; }
+</style>
 </body>
 </html>
