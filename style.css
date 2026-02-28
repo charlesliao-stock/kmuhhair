@@ -176,3 +176,30 @@ input:focus, select:focus, textarea:focus { border-color: var(--primary); outlin
     border-color: #fecaca;
     color: #b91c1c;
 }
+/* 管理端專用樣式 */
+.admin-container { max-width: 900px; margin: auto; padding: 20px; }
+.admin-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+
+.dashboard-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px; }
+.stat-card { background: white; padding: 20px; border-radius: 12px; text-align: center; font-weight: bold; border: 1px solid #e2e8f0; }
+.stat-card.urgent { border-color: var(--urgent); color: var(--urgent); }
+
+.admin-order-card {
+    display: flex; justify-content: space-between; align-items: center;
+    background: white; padding: 15px; border-radius: 10px; margin-bottom: 10px;
+    border: 1px solid #e2e8f0;
+}
+.urgent-row { border-left: 6px solid var(--urgent); background: #fff5f5; }
+
+.btn-dispatch { background: var(--primary); color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; }
+
+/* 彈窗樣式 */
+.modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); display: none; align-items: center; justify-content: center; }
+.modal-content { background: white; padding: 30px; border-radius: 12px; width: 90%; max-width: 400px; }
+.btn-staff-choice { width: 100%; padding: 12px; margin-bottom: 10px; border: 1px solid #ddd; background: white; border-radius: 8px; cursor: pointer; text-align: left; }
+.btn-staff-choice:hover { background: #f0f7ff; border-color: var(--primary); }
+
+.error-text { color: var(--urgent); font-size: 0.85rem; margin-top: 10px; text-align: center; }
+.flex-center { display: flex; align-items: center; justify-content: center; min-height: 100vh; }
+
+
