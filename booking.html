@@ -24,7 +24,7 @@
 
         /* 特殊需求快速選項 */
         .tag-group { display: flex; flex-wrap: wrap; gap: 8px; }
-        .tag-item { display: flex; align-items: center; background: #f1f2f6; padding: 5px 12px; border-radius: 20px; font-size: 0.9rem; cursor: pointer; }
+        .tag-item { display: flex; align-items: center; background: #f1f2f6; padding: 5px 12px; border-radius: 20px; font-size: 0.9rem; cursor: pointer; border: 1px solid transparent; }
         .tag-item input { margin-right: 5px; }
         .tag-urgent { background: #ffeaa7; border: 1px solid #f1c40f; color: #d35400; font-weight: bold; }
 
@@ -91,17 +91,31 @@
 
 <script type="module">
     import { db } from './firebase-config.js';
-    import { collection, getDocs, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+    import { 
+        collection, getDocs, addDoc, serverTimestamp, doc, writeBatch 
+    } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
-    // 1. 初始化設定：載入服務項目與標籤
+    // --- 1. 初始化頁面與載入資料 ---
     async function initPage() {
         try {
-            // 載入服務項目
+            // A. 設定預設日期為今日
+            const today = new Date();
+            const yyyy = today.getFullYear();
+            const mm = String(today.getMonth() + 1).padStart(2, '0');
+            const dd = String(today.getDate()).padStart(2, '0');
+            document.getElementById('bookDate').value = `${yyyy}-${mm}-${dd}`;
+
+            // B. 載入服務項目
             const serviceSnap = await getDocs(collection(db, "Settings/Services/Items"));
             const serviceList = document.getElementById('serviceList');
             serviceList.innerHTML = '';
-            serviceSnap.forEach(doc => {
-                const data = doc.data();
+            
+            if (serviceSnap.empty) {
+                serviceList.innerHTML = '<p style="color:orange;">尚未設定服務項目，請先初始化資料庫。</p>';
+            }
+
+            serviceSnap.forEach(docSnap => {
+                const data = docSnap.data();
                 serviceList.innerHTML += `
                     <label class="service-item">
                         <span><input type="checkbox" name="service" value="${data.name}" data-price="${data.price}"> ${data.name}</span>
@@ -110,11 +124,13 @@
                 `;
             });
 
-            // 載入特殊需求標籤
+            // C. 載入特殊需求標籤
             const tagSnap = await getDocs(collection(db, "Settings/Tags/Items"));
             const tagList = document.getElementById('tagList');
-            tagSnap.forEach(doc => {
-                const data = doc.data();
+            tagList.innerHTML = '';
+            
+            tagSnap.forEach(docSnap => {
+                const data = docSnap.data();
                 const isUrgent = data.name === "今日出院" ? 'tag-urgent' : '';
                 tagList.innerHTML += `
                     <label class="tag-item ${isUrgent}">
@@ -123,33 +139,32 @@
                 `;
             });
 
-            // 監聽金額變動
+            // D. 動態綁定金額計算監聽 (在元素生成後)
             document.querySelectorAll('input[name="service"]').forEach(el => {
                 el.addEventListener('change', calculateTotal);
             });
 
-            // 設定預設日期為今日
-            document.getElementById('bookDate').valueAsDate = new Date();
-
         } catch (e) {
             console.error("載入失敗", e);
-            alert("系統設定載入失敗，請稍後再試。");
+            alert("系統設定載入失敗，請確認 Firebase 設定或稍後再試。");
         }
     }
 
+    // --- 2. 金額累計邏輯 ---
     function calculateTotal() {
         let total = 0;
         document.querySelectorAll('input[name="service"]:checked').forEach(el => {
-            total += parseInt(el.getAttribute('data-price'));
+            total += parseInt(el.getAttribute('data-price') || 0);
         });
         document.getElementById('totalDisplay').innerText = `$ ${total}`;
     }
 
-    // 2. 表單送出
+    // --- 3. 表單送出至 Firestore ---
     document.getElementById('bookingForm').addEventListener('submit', async (e) => {
         e.preventDefault();
         const btn = document.getElementById('submitBtn');
         btn.disabled = true;
+        btn.innerText = "傳送中...";
 
         const selectedServices = Array.from(document.querySelectorAll('input[name="service"]:checked')).map(el => el.value);
         const selectedTags = Array.from(document.querySelectorAll('input[name="tag"]:checked')).map(el => el.value);
@@ -157,6 +172,7 @@
         if (selectedServices.length === 0) {
             alert("請至少選擇一項服務");
             btn.disabled = false;
+            btn.innerText = "確認送出預約";
             return;
         }
 
@@ -169,50 +185,68 @@
             bookDate: document.getElementById('bookDate').value,
             bookSlot: document.getElementById('bookSlot').value,
             note: document.getElementById('note').value,
-            status: 0, // 0:待安排
+            status: 0, // 0: 待安排
             totalAmount: parseInt(document.getElementById('totalDisplay').innerText.replace('$ ','')),
             createdAt: serverTimestamp()
         };
 
         try {
             await addDoc(collection(db, "Orders"), orderData);
-            alert("預約成功！");
+            alert("預約成功！美髮部將盡快為您安排。");
             window.location.href = "index.html";
         } catch (err) {
-            alert("送出失敗: " + err);
+            console.error("送出失敗: ", err);
+            alert("送出失敗，請檢查網路連接或電洽美髮部。");
             btn.disabled = false;
+            btn.innerText = "確認送出預約";
         }
     });
 
+    // --- 4. 開發者專用：初始化資料庫工具 (F12 Console 呼叫) ---
+    window.initDB = async () => {
+        if (!confirm("即將初始化資料庫設定，是否繼續？")) return;
+        
+        const batch = writeBatch(db);
+        
+        // 定義服務項目
+        const services = [
+            { id: 's1', name: '剪髮', price: 200 },
+            { id: 's2', name: '洗髮', price: 300 },
+            { id: 's3', name: '理髮(手術用)', price: 150 }
+        ];
+        services.forEach(s => {
+            batch.set(doc(db, "Settings/Services/Items", s.id), { name: s.name, price: s.price });
+        });
+
+        // 定義標籤
+        const tags = [
+            { id: 't1', name: '今日出院' }, 
+            { id: 't2', name: '需在床上洗' },
+            { id: 't3', name: '身上有管路' }
+        ];
+        tags.forEach(t => {
+            batch.set(doc(db, "Settings/Tags/Items", t.id), { name: t.name });
+        });
+
+        // 定義基礎網約設定
+        batch.set(doc(db, "Settings/WebConfig"), { 
+            isWebOpen: true,
+            updateAt: serverTimestamp()
+        });
+
+        try {
+            await batch.commit();
+            console.log("✅ 資料庫初始化成功！請重新整理頁面。");
+            alert("資料庫初始化成功！請重新整理頁面查看項目。");
+            location.reload();
+        } catch (err) {
+            console.error("❌ 初始化失敗:", err);
+            alert("初始化失敗，可能是權限不足 (Security Rules) 或網路問題。");
+        }
+    };
+
+    // 啟動頁面
     initPage();
-    // 在 booking.html 的 <script type="module"> 裡面最後面加上這幾行
-import { doc, writeBatch } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-
-window.initDB = async () => {
-    const batch = writeBatch(db);
-    
-    // 定義服務項目
-    const services = [
-        { id: 's1', name: '剪髮', price: 200 },
-        { id: 's2', name: '洗髮', price: 300 },
-        { id: 's3', name: '理髮(手術用)', price: 150 }
-    ];
-    services.forEach(s => {
-        batch.set(doc(db, "Settings/Services/Items", s.id), { name: s.name, price: s.price });
-    });
-
-    // 定義標籤
-    const tags = [{ id: 't1', name: '今日出院' }, { id: 't2', name: '需在床上洗' }];
-    tags.forEach(t => {
-        batch.set(doc(db, "Settings/Tags/Items", t.id), { name: t.name });
-    });
-
-    // 定義基礎設定
-    batch.set(doc(db, "Settings/WebConfig"), { isWebOpen: true });
-
-    await batch.commit();
-    console.log("資料庫初始化成功！");
-};
 </script>
 </body>
 </html>
