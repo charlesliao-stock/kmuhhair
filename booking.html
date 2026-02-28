@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>填寫預約服務 - 醫院美髮部</title>
+    <style>
+        :root { --primary: #3498db; --secondary: #2ecc71; --urgent: #e74c3c; }
+        body { font-family: "Microsoft JhengHei", sans-serif; background-color: #f8f9fa; padding: 15px; }
+        .booking-card { background: white; max-width: 500px; margin: auto; padding: 25px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
+        h2 { text-align: center; color: #2c3e50; margin-bottom: 25px; }
+        .section-title { font-size: 1rem; font-weight: bold; margin: 20px 0 10px; border-left: 4px solid var(--primary); padding-left: 10px; }
+        
+        .form-group { margin-bottom: 15px; }
+        label { display: block; margin-bottom: 5px; color: #34495e; }
+        input[type="text"], input[type="tel"], input[type="date"], select, textarea {
+            width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 6px; box-sizing: border-box; font-size: 1rem;
+        }
+
+        /* 項目複選框樣式 */
+        .service-item { display: flex; align-items: center; justify-content: space-between; background: #fdfdfd; border: 1px solid #eee; padding: 10px; border-radius: 6px; margin-bottom: 8px; cursor: pointer; }
+        .service-item input { margin-right: 10px; width: 18px; height: 18px; }
+        .price-label { color: var(--primary); font-weight: bold; }
+
+        /* 特殊需求快速選項 */
+        .tag-group { display: flex; flex-wrap: wrap; gap: 8px; }
+        .tag-item { display: flex; align-items: center; background: #f1f2f6; padding: 5px 12px; border-radius: 20px; font-size: 0.9rem; cursor: pointer; }
+        .tag-item input { margin-right: 5px; }
+        .tag-urgent { background: #ffeaa7; border: 1px solid #f1c40f; color: #d35400; font-weight: bold; }
+
+        .total-box { background: #ecf0f1; padding: 15px; border-radius: 6px; text-align: right; margin-top: 20px; }
+        .total-amount { font-size: 1.5rem; color: var(--urgent); font-weight: bold; }
+
+        .btn-submit { width: 100%; padding: 15px; background: var(--primary); color: white; border: none; border-radius: 6px; font-size: 1.1rem; cursor: pointer; margin-top: 20px; }
+        .btn-submit:disabled { background: #bdc3c7; }
+    </style>
+</head>
+<body>
+
+<div class="booking-card">
+    <h2>填寫服務預約</h2>
+    <form id="bookingForm">
+        <div class="form-group">
+            <label>病房 / 床號</label>
+            <input type="text" id="room" required placeholder="例如: 7F 702-1">
+        </div>
+
+        <div class="form-group">
+            <label>性別</label>
+            <select id="gender">
+                <option value="女">女</option>
+                <option value="男">男</option>
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label>連絡電話</label>
+            <input type="tel" id="phone" required placeholder="請輸入聯絡手機">
+        </div>
+
+        <div class="section-title">服務項目 (可複選)</div>
+        <div id="serviceList">
+            <p style="color:gray;">正在載入服務項目...</p>
+        </div>
+
+        <div class="section-title">預約日期與時段</div>
+        <div style="display: flex; gap: 10px;">
+            <input type="date" id="bookDate" required>
+            <select id="bookSlot" required>
+                <option value="上午">上午</option>
+                <option value="下午">下午</option>
+            </select>
+        </div>
+
+        <div class="section-title">特殊需求 (預設選項)</div>
+        <div class="tag-group" id="tagList">
+            </div>
+
+        <div class="form-group" style="margin-top:15px;">
+            <label>其他備註</label>
+            <textarea id="note" rows="3" placeholder="如有其他特殊狀況請註明..."></textarea>
+        </div>
+
+        <div class="total-box">
+            預計總金額：<span class="total-amount" id="totalDisplay">$ 0</span>
+        </div>
+
+        <button type="submit" id="submitBtn" class="btn-submit">確認送出預約</button>
+    </form>
+</div>
+
+<script type="module">
+    import { db } from './firebase-config.js';
+    import { collection, getDocs, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+    // 1. 初始化設定：載入服務項目與標籤
+    async function initPage() {
+        try {
+            // 載入服務項目
+            const serviceSnap = await getDocs(collection(db, "Settings/Services/Items"));
+            const serviceList = document.getElementById('serviceList');
+            serviceList.innerHTML = '';
+            serviceSnap.forEach(doc => {
+                const data = doc.data();
+                serviceList.innerHTML += `
+                    <label class="service-item">
+                        <span><input type="checkbox" name="service" value="${data.name}" data-price="${data.price}"> ${data.name}</span>
+                        <span class="price-label">$${data.price}</span>
+                    </label>
+                `;
+            });
+
+            // 載入特殊需求標籤
+            const tagSnap = await getDocs(collection(db, "Settings/Tags/Items"));
+            const tagList = document.getElementById('tagList');
+            tagSnap.forEach(doc => {
+                const data = doc.data();
+                const isUrgent = data.name === "今日出院" ? 'tag-urgent' : '';
+                tagList.innerHTML += `
+                    <label class="tag-item ${isUrgent}">
+                        <input type="checkbox" name="tag" value="${data.name}"> ${data.name}
+                    </label>
+                `;
+            });
+
+            // 監聽金額變動
+            document.querySelectorAll('input[name="service"]').forEach(el => {
+                el.addEventListener('change', calculateTotal);
+            });
+
+            // 設定預設日期為今日
+            document.getElementById('bookDate').valueAsDate = new Date();
+
+        } catch (e) {
+            console.error("載入失敗", e);
+            alert("系統設定載入失敗，請稍後再試。");
+        }
+    }
+
+    function calculateTotal() {
+        let total = 0;
+        document.querySelectorAll('input[name="service"]:checked').forEach(el => {
+            total += parseInt(el.getAttribute('data-price'));
+        });
+        document.getElementById('totalDisplay').innerText = `$ ${total}`;
+    }
+
+    // 2. 表單送出
+    document.getElementById('bookingForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const btn = document.getElementById('submitBtn');
+        btn.disabled = true;
+
+        const selectedServices = Array.from(document.querySelectorAll('input[name="service"]:checked')).map(el => el.value);
+        const selectedTags = Array.from(document.querySelectorAll('input[name="tag"]:checked')).map(el => el.value);
+
+        if (selectedServices.length === 0) {
+            alert("請至少選擇一項服務");
+            btn.disabled = false;
+            return;
+        }
+
+        const orderData = {
+            room: document.getElementById('room').value,
+            gender: document.getElementById('gender').value,
+            phone: document.getElementById('phone').value,
+            services: selectedServices,
+            tags: selectedTags,
+            bookDate: document.getElementById('bookDate').value,
+            bookSlot: document.getElementById('bookSlot').value,
+            note: document.getElementById('note').value,
+            status: 0, // 0:待安排
+            totalAmount: parseInt(document.getElementById('totalDisplay').innerText.replace('$ ','')),
+            createdAt: serverTimestamp()
+        };
+
+        try {
+            await addDoc(collection(db, "Orders"), orderData);
+            alert("預約成功！");
+            window.location.href = "index.html";
+        } catch (err) {
+            alert("送出失敗: " + err);
+            btn.disabled = false;
+        }
+    });
+
+    initPage();
+</script>
+</body>
+</html>
