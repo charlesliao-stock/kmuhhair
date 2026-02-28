@@ -1,52 +1,10 @@
-:root {
-    --primary: #3498db;
-    --secondary: #2ecc71;
-    --urgent: #e74c3c;
-    --gray: #95a5a6;
-    --bg: #f8f9fa;
-}
+/* style.css 修正版 */
 
-body {
-    font-family: "Microsoft JhengHei", sans-serif;
-    background-color: var(--bg);
-    padding: 20px;
-    margin: 0;
-}
-
-.booking-card {
-    background: white;
-    max-width: 500px;
-    margin: 20px auto;
-    padding: 30px;
-    border-radius: 12px;
-    box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-}
-
-h2 { text-align: center; color: #2c3e50; }
-
-.section-title {
-    font-size: 1rem;
-    font-weight: bold;
-    margin: 25px 0 12px;
-    border-left: 4px solid var(--primary);
-    padding-left: 10px;
-}
-
-.form-group { margin-bottom: 15px; }
-label { display: block; margin-bottom: 5px; font-weight: bold; }
-
-input, select, textarea {
-    width: 100%;
-    padding: 12px;
-    border: 1px solid #ddd;
-    border-radius: 6px;
-    box-sizing: border-box;
-    font-size: 1rem;
-}
-
+/* 服務項目容器 */
 .service-item {
     display: flex;
-    justify-content: space-between;
+    justify-content: space-between; /* 左右撐開 */
+    align-items: center;           /* 垂直置中 */
     background: #fdfdfd;
     border: 1px solid #eee;
     padding: 12px;
@@ -55,54 +13,51 @@ input, select, textarea {
     cursor: pointer;
 }
 
-.tag-group { display: flex; flex-wrap: wrap; gap: 8px; }
-.tag-item {
-    background: #f1f2f6;
-    padding: 6px 15px;
-    border-radius: 20px;
-    font-size: 0.9rem;
-    cursor: pointer;
-    border: 1px solid transparent;
+/* 左側：勾選框 + 名稱 */
+.service-info {
+    display: flex;
+    align-items: center;           /* 確保勾選框與文字對齊 */
+    white-space: nowrap;           /* 禁止換行 */
 }
 
-.tag-urgent {
-    background: #ffeaa7;
-    border-color: #f1c40f;
-    color: #d35400;
+.service-info input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    margin: 0 10px 0 0;            /* 只有右邊有間距 */
+    cursor: pointer;
+    flex-shrink: 0;                /* 防止勾選框被壓縮 */
+}
+
+.service-name {
+    font-size: 1rem;
+    color: #2c3e50;
+}
+
+/* 右側：金額 */
+.price-label {
     font-weight: bold;
+    color: #3498db;
+    margin-left: 10px;
+    white-space: nowrap;
 }
 
-.total-box {
-    background: #f8f9fa;
-    padding: 20px;
-    border-radius: 8px;
-    text-align: right;
-    margin-top: 25px;
-    border: 1px dashed #ccc;
+/* 預約日期與時段的排列 */
+.datetime-group {
+    display: flex;
+    gap: 10px;
 }
 
-.total-amount { font-size: 1.6rem; color: var(--urgent); font-weight: bold; }
-
-.btn-group { display: flex; flex-direction: column; gap: 12px; margin-top: 30px; }
-.btn-submit {
-    padding: 16px;
-    background: var(--primary);
-    color: white;
-    border: none;
-    border-radius: 8px;
-    font-size: 1.1rem;
+/* 特殊需求標籤也防止斷行 */
+.tag-item {
+    display: flex;
+    align-items: center;
+    white-space: nowrap;
+    padding: 6px 15px;
+    background: #f1f2f6;
+    border-radius: 20px;
     cursor: pointer;
 }
 
-.btn-cancel {
-    padding: 16px;
-    background: var(--gray);
-    color: white;
-    text-align: center;
-    text-decoration: none;
-    border-radius: 8px;
-    font-size: 1.1rem;
+.tag-item input {
+    margin-right: 6px;
 }
-
-.btn-submit:hover { background: #2980b9; }
-.btn-cancel:hover { background: #7f8c8d; }
