@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>個人工作列表 - 醫院美髮部</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div class="admin-container">
+    <header class="admin-header">
+        <h2 id="stylistTitle">我的工作清單</h2>
+        <button id="logoutBtn" class="btn-small-gray">登出</button>
+    </header>
+
+    <div class="dashboard-grid">
+        <div class="stat-card">待處理：<span id="stat-todo">0</span></div>
+        <div class="stat-card" style="color: var(--secondary);">今日已完工：<span id="stat-done">0</span></div>
+    </div>
+
+    <div class="section-title">目前派遣任務</div>
+    <div id="taskList" class="admin-list">
+        <p class="loading-text">正在讀取任務...</p>
+    </div>
+</div>
+
+<script type="module">
+    import { db, auth } from './firebase-config.js';
+    import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+    import { 
+        collection, query, where, onSnapshot, orderBy, doc, updateDoc, serverTimestamp 
+    } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+    let currentUid = null;
+
+    // 1. 身分驗證與權限檢查
+    onAuthStateChanged(auth, (user) => {
+        if (!user) {
+            window.location.href = 'login.html';
+        } else {
+            currentUid = user.uid;
+            loadStylistTasks(user.uid);
+        }
+    });
+
+    // 2. 監聽指派給自己的任務
+    function loadStylistTasks(uid) {
+        // 查詢條件：指派對象是自己，且狀態為 1(已派工) 或 2(服務中)
+        const q = query(
+            collection(db, "Orders"), 
+            where("stylistId", "==", uid),
+            where("status", "in", [1, 2]),
+            orderBy("createdAt", "asc")
+        );
+
+        onSnapshot(q, (snapshot) => {
+            const taskList = document.getElementById('taskList');
+            taskList.innerHTML = '';
+            document.getElementById('stat-todo').innerText = snapshot.size;
+
+            if (snapshot.empty) {
+                taskList.innerHTML = '<p class="empty-text">目前沒有新的派遣任務。</p>';
+                return;
+            }
+
+            snapshot.forEach(docSnap => {
+                const data = docSnap.data();
+                const id = docSnap.id;
+                const isUrgent = data.tags.includes("今日出院") ? 'urgent-row' : '';
+                
+                // 根據狀態顯示不同按鈕
+                let actionBtn = "";
+                if (data.status === 1) {
+                    actionBtn = `<button onclick="updateStatus('${id}', 2)" class="btn-arrival">已抵達病房</button>`;
+                } else if (data.status === 2) {
+                    actionBtn = `<button onclick="updateStatus('${id}', 3)" class="btn-finish">服務完工</button>`;
+                }
+
+                taskList.innerHTML += `
+                    <div class="admin-order-card ${isUrgent}">
+                        <div class="order-info">
+                            <span class="status-badge status-${data.status}">
+                                ${data.status === 1 ? '待出發' : '服務中'}
+                            </span>
+                            <strong>${data.room}</strong> | ${data.gender}
+                            <p class="task-detail">${data.services.join('、')}</p>
+                            <small class="task-note">備註：${data.note || '無'}</small>
+                        </div>
+                        <div class="task-actions">
+                            ${actionBtn}
+                        </div>
+                    </div>
+                `;
+            });
+        });
+
+        // 另外統計今日完工數 (status = 3)
+        const doneQ = query(
+            collection(db, "Orders"),
+            where("stylistId", "==", uid),
+            where("status", "==", 3)
+        );
+        onSnapshot(doneQ, snap => {
+            document.getElementById('stat-done').innerText = snap.size;
+        });
+    }
+
+    // 3. 更新工單狀態邏輯
+    window.updateStatus = async (orderId, newStatus) => {
+        const confirmMsg = newStatus === 3 ? "確定已完成服務並收到款項？" : "確定已抵達病人床邊？";
+        if (!confirm(confirmMsg)) return;
+
+        try {
+            const ref = doc(db, "Orders", orderId);
+            const updateData = { status: newStatus };
+            
+            // 根據不同狀態紀錄時間
+            if (newStatus === 2) updateData.arrivalAt = serverTimestamp();
+            if (newStatus === 3) updateData.completedAt = serverTimestamp();
+
+            await updateDoc(ref, updateData);
+        } catch (error) {
+            alert("更新失敗，請檢查網路連線。");
+        }
+    };
+
+    document.getElementById('logoutBtn').addEventListener('click', () => signOut(auth));
+</script>
+
+<style>
+    /* 美髮師端額外樣式，可整合至 style.css */
+    .btn-arrival { background: #6366f1; color: white; border: none; padding: 10px 15px; border-radius: 6px; cursor: pointer; font-weight: bold; }
+    .btn-finish { background: var(--secondary); color: white; border: none; padding: 10px 15px; border-radius: 6px; cursor: pointer; font-weight: bold; }
+    .task-detail { margin: 8px 0 4px; color: #1e293b; font-weight: 600; }
+    .task-note { color: #64748b; display: block; }
+    .task-actions { margin-left: 15px; flex-shrink: 0; }
+    .status-badge { font-size: 0.75rem; padding: 2px 8px; border-radius: 4px; color: white; vertical-align: middle; margin-right: 5px; }
+    .status-1 { background: #94a3b8; }
+    .status-2 { background: #f59e0b; }
+</style>
+</body>
+</html>
