@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>數據統計 - 醫院美髮部</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+<div class="booking-card" style="max-width: 850px;">
+    <h2 class="main-title">服務數據統計</h2>
+    
+    <div class="info-grid card-padding">
+        <div class="form-group">
+            <label>起始日期</label>
+            <input type="date" id="startDate">
+        </div>
+        <div class="form-group">
+            <label>結束日期</label>
+            <input type="date" id="endDate">
+        </div>
+        <button onclick="calculateStats()" class="btn-submit full-width">生成報表</button>
+    </div>
+
+    <div class="dashboard-grid">
+        <div class="stat-card">總接單數：<span id="totalOrders">0</span></div>
+        <div class="stat-card" style="color:var(--primary);">總營業額：$<span id="totalRevenue">0</span></div>
+    </div>
+
+    <div class="section-title">個人工作量統計</div>
+    <div class="card-padding">
+        <canvas id="staffChart"></canvas>
+    </div>
+</div>
+
+<script type="module">
+    import { db } from './firebase-config.js';
+    import { collection, query, where, getDocs } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+    let chart = null;
+
+    window.calculateStats = async () => {
+        const start = document.getElementById('startDate').value;
+        const end = document.getElementById('endDate').value;
+        if(!start || !end) return alert("請選擇區間");
+
+        const q = query(collection(db, "Orders"), 
+                    where("bookDate", ">=", start), 
+                    where("bookDate", "<=", end),
+                    where("status", "==", 3)); // 僅統計已完工
+
+        const snap = await getDocs(q);
+        let totalRev = 0;
+        const staffData = {};
+
+        snap.forEach(doc => {
+            const d = doc.data();
+            totalRev += d.totalAmount;
+            const sName = d.stylistName || "未記錄";
+            staffData[sName] = (staffData[sName] || 0) + 1;
+        });
+
+        document.getElementById('totalOrders').innerText = snap.size;
+        document.getElementById('totalRevenue').innerText = totalRev;
+        renderChart(staffData);
+    };
+
+    function renderChart(data) {
+        const ctx = document.getElementById('staffChart').getContext('2d');
+        if(chart) chart.destroy();
+        chart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: Object.keys(data),
+                datasets: [{
+                    label: '完工件數',
+                    data: Object.values(data),
+                    backgroundColor: '#007bff'
+                }]
+            }
+        });
+    }
+</script>
+</body>
+</html>
