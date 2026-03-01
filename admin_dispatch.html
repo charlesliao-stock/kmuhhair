@@ -33,6 +33,7 @@
 <body>
 
 <div class="dispatch-container">
+    <!-- 即時待派遣清單 -->
     <section class="admin-section">
         <div class="section-title">即時待派遣清單</div>
         <div class="filter-bar">
@@ -56,6 +57,44 @@
         </div>
     </section>
 
+    <!-- 已派遣但未完工清單 -->
+    <section class="admin-section">
+        <div class="section-title">已派遣但未完工</div>
+        <div class="table-container">
+            <table class="dispatch-table">
+                <thead>
+                    <tr>
+                        <th>日期</th><th>午別</th><th>床號</th><th>性別</th>
+                        <th>電話</th><th>服務項目</th><th>特殊需求</th>
+                        <th>指定美髮師</th><th>指派美髮師</th>
+                    </tr>
+                </thead>
+                <tbody id="inProgressTableBody">
+                    <tr><td colspan="9" class="empty-row">載入中...</td></tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- 本日已完成清單 -->
+        <div style="margin-top: 30px;">
+            <div class="section-title">本日已完成清單</div>
+            <div class="table-container">
+                <table class="dispatch-table">
+                    <thead>
+                        <tr>
+                            <th>日期</th><th>午別</th><th>床號</th><th>性別</th>
+                            <th>電話</th><th>項目</th><th>特殊需求</th><th>承接美髮師</th>
+                        </tr>
+                    </thead>
+                    <tbody id="completedTableBody">
+                        <tr><td colspan="8" class="empty-row">載入中...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </section>
+
+    <!-- 統計區塊 -->
     <div class="stats-grid">
         <section class="admin-section">
             <div class="section-title">本日服務量小計</div>
@@ -83,23 +122,6 @@
             </div>
         </section>
     </div>
-
-    <section class="admin-section">
-        <div class="section-title">本日已完成清單</div>
-        <div class="table-container">
-            <table class="dispatch-table">
-                <thead>
-                    <tr>
-                        <th>日期</th><th>午別</th><th>床號</th><th>性別</th>
-                        <th>電話</th><th>項目</th><th>特殊需求</th><th>承接美髮師</th>
-                    </tr>
-                </thead>
-                <tbody id="completedTableBody">
-                    <tr><td colspan="8" class="empty-row">載入中...</td></tr>
-                </tbody>
-            </table>
-        </div>
-    </section>
 </div>
 
 <audio id="alertSound" src="https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3" preload="auto"></audio>
@@ -117,6 +139,7 @@
         staffLoad: {},
         todayStr: new Date().toLocaleDateString('sv-SE'),
         unsubPending: null,
+        unsubInProgress: null,
         unsubSummary: null,
 
         async init() {
@@ -128,6 +151,7 @@
                     console.log("WebConfig 已載入:", this.webConfig);
                 }
                 this.listenPending();
+                this.listenInProgress();
                 this.listenSummary();
             } catch (error) {
                 console.error("初始化失敗:", error);
@@ -212,6 +236,70 @@
             }, (error) => {
                 console.error("監聽待派遣失敗:", error);
                 document.getElementById('pendingTableBody').innerHTML = '<tr><td colspan="9" class="empty-row">監聽失敗，請檢查網路連線</td></tr>';
+            });
+        },
+
+        // 監聽已派遣但未完工 (Status 1 或 2)
+        listenInProgress() {
+            if(this.unsubInProgress) this.unsubInProgress();
+            
+            let q;
+            if(this.filterMode === 'today') {
+                q = query(
+                    collection(db, "Orders"), 
+                    where("bookDate", "==", this.todayStr),
+                    orderBy("createdAt", "asc")
+                );
+            } else {
+                q = query(
+                    collection(db, "Orders"), 
+                    orderBy("createdAt", "asc")
+                );
+            }
+
+            this.unsubInProgress = onSnapshot(q, (snap) => {
+                const body = document.getElementById('inProgressTableBody');
+                body.innerHTML = '';
+                
+                let hasInProgress = false;
+                snap.forEach(d => {
+                    const data = d.data();
+                    // 只顯示 Status 1 (已派遣) 或 Status 2 (進行中) 的訂單
+                    if (data.status === 1 || data.status === 2) {
+                        hasInProgress = true;
+                        const urgentClass = data.tags && data.tags.some(t => t.includes("出院")) ? 'urgent-row' : '';
+                        const dayIndex = (new Date(data.bookDate).getDay() + 6) % 7;
+                        const staffs = data.bookSlot === "上午" 
+                            ? (this.webConfig?.[`day${dayIndex}`]?.amStaffs || []) 
+                            : (this.webConfig?.[`day${dayIndex}`]?.pmStaffs || []);
+
+                        body.innerHTML += `
+                            <tr class="${urgentClass}">
+                                <td>${data.bookDate}</td>
+                                <td>${data.bookSlot}</td>
+                                <td><strong>${data.room}</strong></td>
+                                <td>${data.gender}</td>
+                                <td>${data.phone}</td>
+                                <td>${(data.services || []).join('、')}</td>
+                                <td>${(data.tags || []).join('、')}</td>
+                                <td><span class="assigned-tag">${data.preferredStylist || "待指定"}</span></td>
+                                <td>
+                                    <select class="assign-select" onchange="window.dispatchModule.assignStylist('${d.id}', this.value)">
+                                        <option value="">請選擇...</option>
+                                        ${staffs.map(s => `<option value="${s}">${s} (待:${this.staffLoad[s]?.pending || 0}/完:${this.staffLoad[s]?.done || 0})</option>`).join('')}
+                                    </select>
+                                </td>
+                            </tr>
+                        `;
+                    }
+                });
+
+                if (!hasInProgress) {
+                    body.innerHTML = '<tr><td colspan="9" class="empty-row">目前無派遣中訂單</td></tr>';
+                }
+            }, (error) => {
+                console.error("監聽派遣中失敗:", error);
+                document.getElementById('inProgressTableBody').innerHTML = '<tr><td colspan="9" class="empty-row">監聽失敗，請檢查網路連線</td></tr>';
             });
         },
 
