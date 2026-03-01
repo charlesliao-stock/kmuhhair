@@ -269,7 +269,36 @@ input:focus, select:focus, textarea:focus {
 .price-text { color: var(--urgent); font-weight: 700; }
 
 /* =========================================
-   6. 響應式優化 (RWD)
+   6. 派遣管理頁面樣式
+   ========================================= */
+.dispatch-container {
+    background: var(--bg);
+    padding: 30px;
+    max-width: 1400px;
+    margin: 0 auto;
+}
+
+.empty-text {
+    text-align: center;
+    color: #94a3b8;
+    padding: 20px;
+    font-style: italic;
+}
+
+.loading-text {
+    text-align: center;
+    color: #94a3b8;
+    padding: 20px;
+}
+
+.sub-label {
+    font-size: 0.85rem;
+    color: #64748b;
+    font-weight: 600;
+}
+
+/* =========================================
+   7. 響應式優化 (RWD)
    ========================================= */
 @media (max-width: 500px) {
     .item-card { 

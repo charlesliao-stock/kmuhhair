@@ -33,8 +33,8 @@
         <div class="section-title">即時待派遣清單</div>
         <div class="filter-bar">
             <span>顯示範圍：</span>
-            <button id="btnToday" class="filter-btn active" onclick="setFilter('today')">只顯示今日</button>
-            <button id="btnAll" class="filter-btn" onclick="setFilter('all')">顯示全部</button>
+            <button id="btnToday" class="filter-btn active" onclick="window.dispatchModule.setFilter('today')">只顯示今日</button>
+            <button id="btnAll" class="filter-btn" onclick="window.dispatchModule.setFilter('all')">顯示全部</button>
         </div>
         <div class="table-container">
             <table class="dispatch-table">
@@ -100,108 +100,159 @@
         collection, query, where, onSnapshot, orderBy, doc, getDoc, updateDoc, serverTimestamp 
     } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
-    let filterMode = 'today';
-    let webConfig = null;
-    let staffLoad = {}; 
-    const todayStr = new Date().toLocaleDateString('sv-SE'); // 取得 YYYY-MM-DD
+    // 模組物件，暴露給全域作用域以供 iframe 外部呼叫
+    const dispatchModule = {
+        filterMode: 'today',
+        webConfig: null,
+        staffLoad: {},
+        todayStr: new Date().toLocaleDateString('sv-SE'),
+        unsubPending: null,
+        unsubSummary: null,
 
-    async function init() {
-        const configSnap = await getDoc(doc(db, "Settings", "WebConfig"));
-        if (configSnap.exists()) webConfig = configSnap.data();
-        listenPending();
-        listenSummary(); // 監聽今日數據做統計與已完成清單
-    }
+        async init() {
+            try {
+                const configSnap = await getDoc(doc(db, "Settings", "WebConfig"));
+                if (configSnap.exists()) this.webConfig = configSnap.data();
+                this.listenPending();
+                this.listenSummary();
+            } catch (error) {
+                console.error("初始化失敗:", error);
+                document.getElementById('pendingTableBody').innerHTML = '<tr><td colspan="9" class="empty-text">載入失敗，請重新整理頁面</td></tr>';
+            }
+        },
 
-    window.setFilter = (mode) => {
-        filterMode = mode;
-        document.getElementById('btnToday').classList.toggle('active', mode === 'today');
-        document.getElementById('btnAll').classList.toggle('active', mode === 'all');
-        listenPending();
-    };
+        setFilter(mode) {
+            this.filterMode = mode;
+            document.getElementById('btnToday').classList.toggle('active', mode === 'today');
+            document.getElementById('btnAll').classList.toggle('active', mode === 'all');
+            this.listenPending();
+        },
 
-    // 監聽待派遣 (Status 0)
-    let unsubPending = null;
-    function listenPending() {
-        if(unsubPending) unsubPending();
-        let q = query(collection(db, "Orders"), where("status", "==", 0), orderBy("createdAt", "asc"));
-        if(filterMode === 'today') {
-            q = query(collection(db, "Orders"), where("status", "==", 0), where("bookDate", "==", todayStr), orderBy("createdAt", "asc"));
+        // 監聽待派遣 (Status 0)
+        listenPending() {
+            if(this.unsubPending) this.unsubPending();
+            
+            let q;
+            if(this.filterMode === 'today') {
+                q = query(
+                    collection(db, "Orders"), 
+                    where("status", "==", 0), 
+                    where("bookDate", "==", this.todayStr), 
+                    orderBy("createdAt", "asc")
+                );
+            } else {
+                q = query(
+                    collection(db, "Orders"), 
+                    where("status", "==", 0), 
+                    orderBy("createdAt", "asc")
+                );
+            }
+
+            this.unsubPending = onSnapshot(q, (snap) => {
+                const body = document.getElementById('pendingTableBody');
+                body.innerHTML = snap.empty ? '<tr><td colspan="9" class="empty-text">目前無待派遣訂單</td></tr>' : '';
+                
+                if (snap.docChanges().some(c => c.type === "added")) {
+                    try {
+                        document.getElementById('alertSound').play().catch(()=>{});
+                    } catch(e) {
+                        console.log("無法播放聲音:", e);
+                    }
+                }
+
+                snap.forEach(d => {
+                    const data = d.data();
+                    const urgentClass = data.tags && data.tags.some(t => t.includes("出院")) ? 'urgent-row' : '';
+                    const dayIndex = (new Date(data.bookDate).getDay() + 6) % 7;
+                    const staffs = data.bookSlot === "上午" 
+                        ? (this.webConfig?.[`day${dayIndex}`]?.amStaffs || []) 
+                        : (this.webConfig?.[`day${dayIndex}`]?.pmStaffs || []);
+
+                    body.innerHTML += `
+                        <tr class="${urgentClass}">
+                            <td>${data.bookDate}</td><td>${data.bookSlot}</td>
+                            <td><strong>${data.room}</strong></td><td>${data.gender}</td>
+                            <td>${data.phone}</td><td>${(data.services || []).join('、')}</td>
+                            <td>${(data.tags || []).join('、')}</td>
+                            <td><span class="assigned-tag">${data.preferredStylist || "待指定"}</span></td>
+                            <td>
+                                <select class="assign-select" onchange="window.dispatchModule.assignStylist('${d.id}', this.value)">
+                                    <option value="">請選擇...</option>
+                                    ${staffs.map(s => `<option value="${s}">${s} (待:${this.staffLoad[s]?.pending || 0}/完:${this.staffLoad[s]?.done || 0})</option>`).join('')}
+                                </select>
+                            </td>
+                        </tr>
+                    `;
+                });
+            }, (error) => {
+                console.error("監聽待派遣失敗:", error);
+                document.getElementById('pendingTableBody').innerHTML = '<tr><td colspan="9" class="empty-text">監聽失敗，請檢查網路連線</td></tr>';
+            });
+        },
+
+        // 監聽統計與已完成
+        listenSummary() {
+            if(this.unsubSummary) this.unsubSummary();
+            
+            const q = query(collection(db, "Orders"), where("bookDate", "==", this.todayStr));
+            this.unsubSummary = onSnapshot(q, (snap) => {
+                const compBody = document.getElementById('completedTableBody');
+                const summaryBody = document.getElementById('summaryBody');
+                const personalBody = document.getElementById('personalStatsBody');
+                compBody.innerHTML = '';
+                
+                let counts = { "剪髮": 0, "理髮(手術用)": 0, "洗髮": 0, "染髮": 0 };
+                let person = {}; 
+                this.staffLoad = {};
+
+                snap.forEach(d => {
+                    const data = d.data();
+                    const sName = data.stylistName;
+                    if(sName) {
+                        if(!this.staffLoad[sName]) this.staffLoad[sName] = { pending: 0, done: 0 };
+                        data.status < 3 ? this.staffLoad[sName].pending++ : this.staffLoad[sName].done++;
+                    }
+
+                    if(data.status === 3) {
+                        compBody.innerHTML += `<tr><td>${data.bookDate}</td><td>${data.bookSlot}</td><td>${data.room}</td><td>${data.gender}</td><td>${data.phone}</td><td>${(data.services || []).join('、')}</td><td>${(data.tags || []).join('、')}</td><td>${data.preferredStylist ? '★' : ''}${sName}</td></tr>`;
+                        (data.services || []).forEach(s => {
+                            if(counts.hasOwnProperty(s)) counts[s]++;
+                            if(sName) {
+                                if(!person[sName]) person[sName] = { "剪髮": 0, "理髮(手術用)": 0, "洗髮": 0, "染髮": 0, total: 0 };
+                                if(person[sName].hasOwnProperty(s)) { person[sName][s]++; person[sName].total++; }
+                            }
+                        });
+                    }
+                });
+                
+                summaryBody.innerHTML = Object.entries(counts).map(([k,v])=>`<tr><td>${k}</td><td>${v} 件</td></tr>`).join('') + `<tr style="font-weight:bold; background:#fefce8;"><td>總計</td><td>${Object.values(counts).reduce((a,b)=>a+b,0)} 件</td></tr>`;
+                personalBody.innerHTML = Object.entries(person).map(([name, s])=>`<tr><td><strong>${name}</strong></td><td>${s["剪髮"]}</td><td>${s["理髮(手術用)"]}</td><td>${s["洗髮"]}</td><td>${s["染髮"]}</td><td style="font-weight:bold; color:var(--primary);">${s.total}</td></tr>`).join('');
+            }, (error) => {
+                console.error("監聽統計失敗:", error);
+            });
+        },
+
+        async assignStylist(id, name) {
+            if(!name || !confirm(`確定指派給 ${name}？`)) return;
+            try {
+                await updateDoc(doc(db, "Orders", id), { 
+                    status: 1, 
+                    stylistName: name, 
+                    dispatchedAt: serverTimestamp() 
+                });
+                alert("指派成功！");
+            } catch (error) {
+                console.error("指派失敗:", error);
+                alert("指派失敗，請稍後再試");
+            }
         }
-
-        unsubPending = onSnapshot(q, (snap) => {
-            const body = document.getElementById('pendingTableBody');
-            body.innerHTML = snap.empty ? '<tr><td colspan="9" class="empty-text">目前無待派遣訂單</td></tr>' : '';
-            
-            if (snap.docChanges().some(c => c.type === "added")) document.getElementById('alertSound').play().catch(()=>{});
-
-            snap.forEach(d => {
-                const data = d.data();
-                const urgentClass = data.tags.some(t => t.includes("出院")) ? 'urgent-row' : '';
-                const dayIndex = (new Date(data.bookDate).getDay() + 6) % 7; // 轉為 0(一)-6(日)
-                const staffs = data.bookSlot === "上午" ? (webConfig[`day${dayIndex}`]?.amStaffs || []) : (webConfig[`day${dayIndex}`]?.pmStaffs || []);
-
-                body.innerHTML += `
-                    <tr class="${urgentClass}">
-                        <td>${data.bookDate}</td><td>${data.bookSlot}</td>
-                        <td><strong>${data.room}</strong></td><td>${data.gender}</td>
-                        <td>${data.phone}</td><td>${data.services.join('、')}</td>
-                        <td>${data.tags.join('、')}</td>
-                        <td><span class="assigned-tag">${data.preferredStylist || "待指定"}</span></td>
-                        <td>
-                            <select class="assign-select" onchange="window.assignStylist('${d.id}', this.value)">
-                                <option value="">請選擇...</option>
-                                ${staffs.map(s => `<option value="${s}">${s} (待:${staffLoad[s]?.pending || 0}/完:${staffLoad[s]?.done || 0})</option>`).join('')}
-                            </select>
-                        </td>
-                    </tr>
-                `;
-            });
-        });
-    }
-
-    // 監聽統計與已完成
-    function listenSummary() {
-        const q = query(collection(db, "Orders"), where("bookDate", "==", todayStr));
-        onSnapshot(q, (snap) => {
-            const compBody = document.getElementById('completedTableBody');
-            const summaryBody = document.getElementById('summaryBody');
-            const personalBody = document.getElementById('personalStatsBody');
-            compBody.innerHTML = '';
-            
-            let counts = { "剪髮": 0, "理髮(手術用)": 0, "洗髮": 0, "染髮": 0 };
-            let person = {}; 
-            staffLoad = {};
-
-            snap.forEach(d => {
-                const data = d.data();
-                const sName = data.stylistName;
-                if(sName) {
-                    if(!staffLoad[sName]) staffLoad[sName] = { pending: 0, done: 0 };
-                    data.status < 3 ? staffLoad[sName].pending++ : staffLoad[sName].done++;
-                }
-
-                if(data.status === 3) {
-                    compBody.innerHTML += `<tr><td>${data.bookDate}</td><td>${data.bookSlot}</td><td>${data.room}</td><td>${data.gender}</td><td>${data.phone}</td><td>${data.services.join('、')}</td><td>${data.tags.join('、')}</td><td>${data.preferredStylist ? '★' : ''}${sName}</td></tr>`;
-                    data.services.forEach(s => {
-                        if(counts.hasOwnProperty(s)) counts[s]++;
-                        if(sName) {
-                            if(!person[sName]) person[sName] = { "剪髮": 0, "理髮(手術用)": 0, "洗髮": 0, "染髮": 0, total: 0 };
-                            if(person[sName].hasOwnProperty(s)) { person[sName][s]++; person[sName].total++; }
-                        }
-                    });
-                }
-            });
-            summaryBody.innerHTML = Object.entries(counts).map(([k,v])=>`<tr><td>${k}</td><td>${v} 件</td></tr>`).join('') + `<tr style="font-weight:bold; background:#fefce8;"><td>總計</td><td>${Object.values(counts).reduce((a,b)=>a+b,0)} 件</td></tr>`;
-            personalBody.innerHTML = Object.entries(person).map(([name, s])=>`<tr><td><strong>${name}</strong></td><td>${s["剪髮"]}</td><td>${s["理髮(手術用)"]}</td><td>${s["洗髮"]}</td><td>${s["染髮"]}</td><td style="font-weight:bold; color:var(--primary);">${s.total}</td></tr>`).join('');
-        });
-    }
-
-    window.assignStylist = async (id, name) => {
-        if(!name || !confirm(`確定指派給 ${name}？`)) return;
-        await updateDoc(doc(db, "Orders", id), { status: 1, stylistName: name, dispatchedAt: serverTimestamp() });
     };
 
-    init();
+    // 暴露模組到全域作用域
+    window.dispatchModule = dispatchModule;
+
+    // 初始化
+    dispatchModule.init();
 </script>
 </body>
 </html>
