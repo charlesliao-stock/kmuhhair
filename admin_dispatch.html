@@ -60,6 +60,11 @@
     <!-- 已派遣但未完工清單 -->
     <section class="admin-section">
         <div class="section-title">已派遣但未完工</div>
+        <div class="filter-bar">
+            <span>顯示範圍：</span>
+            <button id="btnInProgressToday" class="filter-btn active" onclick="window.dispatchModule.setInProgressFilter('today')">只顯示今日</button>
+            <button id="btnInProgressAll" class="filter-btn" onclick="window.dispatchModule.setInProgressFilter('all')">顯示全部</button>
+        </div>
         <div class="table-container">
             <table class="dispatch-table">
                 <thead>
@@ -135,6 +140,7 @@
     // 模組物件，暴露給全域作用域以供 iframe 外部呼叫
     const dispatchModule = {
         filterMode: 'today',
+        inProgressFilterMode: 'today',
         webConfig: null,
         staffLoad: {},
         todayStr: new Date().toLocaleDateString('sv-SE'),
@@ -164,6 +170,13 @@
             document.getElementById('btnToday').classList.toggle('active', mode === 'today');
             document.getElementById('btnAll').classList.toggle('active', mode === 'all');
             this.listenPending();
+        },
+
+        setInProgressFilter(mode) {
+            this.inProgressFilterMode = mode;
+            document.getElementById('btnInProgressToday').classList.toggle('active', mode === 'today');
+            document.getElementById('btnInProgressAll').classList.toggle('active', mode === 'all');
+            this.listenInProgress();
         },
 
         // 監聽待派遣 (Status 0)
@@ -244,7 +257,7 @@
             if(this.unsubInProgress) this.unsubInProgress();
             
             let q;
-            if(this.filterMode === 'today') {
+            if(this.inProgressFilterMode === 'today') {
                 q = query(
                     collection(db, "Orders"), 
                     where("bookDate", "==", this.todayStr),
