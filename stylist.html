@@ -401,7 +401,7 @@
         }
         
         try {
-            // 【修復】優先從 Users 集合獲取美髮師姓名
+            // 優先從 Users 集合獲取美髮師姓名
             const userDoc = await getDoc(doc(db, "Users", user.uid));
             if (userDoc.exists()) {
                 currentStylistName = userDoc.data().name;
@@ -434,6 +434,8 @@
 
         onSnapshot(qTodo, (snap) => {
             renderTodoList(snap);
+            // 【修正】計數器應顯示指派給該美髮師且尚未完工的案件數量
+            document.getElementById('count-todo').innerText = snap.size;
             updateNotification(snap.size);
         }, (err) => console.error("監聽待完成失敗:", err));
 
@@ -460,7 +462,6 @@
             setTimeout(() => banner.style.display = 'none', 5000);
         }
         lastOrderCount = count;
-        document.getElementById('count-todo').innerText = count;
     }
 
     function renderTodoList(snap) {
