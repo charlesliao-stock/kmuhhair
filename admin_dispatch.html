@@ -20,10 +20,14 @@
         .stats-table { width: 100%; border-collapse: collapse; background: white; border-radius: 8px; }
         .stats-table th, .stats-table td { padding: 10px; border: 1px solid #eee; text-align: center; }
         .stats-table th { background: #f1f5f9; }
+        .stats-table td { text-align: center; }
+        .stats-table td:first-child { text-align: left; }
 
         .assign-select { padding: 6px; border-radius: 6px; border: 1px solid #cbd5e1; width: 100%; font-size: 0.85rem; }
         .assigned-tag { color: #f59e0b; font-weight: 800; }
         .urgent-row { background: #fff5f5; border-left: 5px solid var(--urgent) !important; }
+        
+        .empty-row { text-align: center; color: #94a3b8; padding: 20px; font-style: italic; }
     </style>
 </head>
 <body>
@@ -46,7 +50,7 @@
                     </tr>
                 </thead>
                 <tbody id="pendingTableBody">
-                    <tr><td colspan="9" class="loading-text">正在監聽新訂單...</td></tr>
+                    <tr><td colspan="9" class="empty-row">正在監聽新訂單...</td></tr>
                 </tbody>
             </table>
         </div>
@@ -58,7 +62,9 @@
             <div class="table-container">
                 <table class="stats-table">
                     <thead><tr><th>服務項目</th><th>件數</th></tr></thead>
-                    <tbody id="summaryBody"></tbody>
+                    <tbody id="summaryBody">
+                        <tr><td colspan="2" class="empty-row">載入中...</td></tr>
+                    </tbody>
                 </table>
             </div>
         </section>
@@ -70,7 +76,9 @@
                     <thead>
                         <tr><th>姓名</th><th>剪髮</th><th>理髮</th><th>洗髮</th><th>染髮</th><th>合計</th></tr>
                     </thead>
-                    <tbody id="personalStatsBody"></tbody>
+                    <tbody id="personalStatsBody">
+                        <tr><td colspan="6" class="empty-row">載入中...</td></tr>
+                    </tbody>
                 </table>
             </div>
         </section>
@@ -86,7 +94,9 @@
                         <th>電話</th><th>項目</th><th>特殊需求</th><th>承接美髮師</th>
                     </tr>
                 </thead>
-                <tbody id="completedTableBody"></tbody>
+                <tbody id="completedTableBody">
+                    <tr><td colspan="8" class="empty-row">載入中...</td></tr>
+                </tbody>
             </table>
         </div>
     </section>
@@ -111,13 +121,17 @@
 
         async init() {
             try {
+                console.log("初始化 admin_dispatch...");
                 const configSnap = await getDoc(doc(db, "Settings", "WebConfig"));
-                if (configSnap.exists()) this.webConfig = configSnap.data();
+                if (configSnap.exists()) {
+                    this.webConfig = configSnap.data();
+                    console.log("WebConfig 已載入:", this.webConfig);
+                }
                 this.listenPending();
                 this.listenSummary();
             } catch (error) {
                 console.error("初始化失敗:", error);
-                document.getElementById('pendingTableBody').innerHTML = '<tr><td colspan="9" class="empty-text">載入失敗，請重新整理頁面</td></tr>';
+                document.getElementById('pendingTableBody').innerHTML = '<tr><td colspan="9" class="empty-row">載入失敗，請重新整理頁面</td></tr>';
             }
         },
 
@@ -150,9 +164,10 @@
 
             this.unsubPending = onSnapshot(q, (snap) => {
                 const body = document.getElementById('pendingTableBody');
-                body.innerHTML = snap.empty ? '<tr><td colspan="9" class="empty-text">目前無待派遣訂單</td></tr>' : '';
                 
-                if (snap.docChanges().some(c => c.type === "added")) {
+                // 檢查是否有新增的訂單
+                const hasNewOrder = snap.docChanges().some(c => c.type === "added");
+                if (hasNewOrder) {
                     try {
                         document.getElementById('alertSound').play().catch(()=>{});
                     } catch(e) {
@@ -160,33 +175,43 @@
                     }
                 }
 
-                snap.forEach(d => {
-                    const data = d.data();
-                    const urgentClass = data.tags && data.tags.some(t => t.includes("出院")) ? 'urgent-row' : '';
-                    const dayIndex = (new Date(data.bookDate).getDay() + 6) % 7;
-                    const staffs = data.bookSlot === "上午" 
-                        ? (this.webConfig?.[`day${dayIndex}`]?.amStaffs || []) 
-                        : (this.webConfig?.[`day${dayIndex}`]?.pmStaffs || []);
+                // 清空表格
+                body.innerHTML = '';
+                
+                if (snap.empty) {
+                    body.innerHTML = '<tr><td colspan="9" class="empty-row">目前無待派遣訂單</td></tr>';
+                } else {
+                    snap.forEach(d => {
+                        const data = d.data();
+                        const urgentClass = data.tags && data.tags.some(t => t.includes("出院")) ? 'urgent-row' : '';
+                        const dayIndex = (new Date(data.bookDate).getDay() + 6) % 7;
+                        const staffs = data.bookSlot === "上午" 
+                            ? (this.webConfig?.[`day${dayIndex}`]?.amStaffs || []) 
+                            : (this.webConfig?.[`day${dayIndex}`]?.pmStaffs || []);
 
-                    body.innerHTML += `
-                        <tr class="${urgentClass}">
-                            <td>${data.bookDate}</td><td>${data.bookSlot}</td>
-                            <td><strong>${data.room}</strong></td><td>${data.gender}</td>
-                            <td>${data.phone}</td><td>${(data.services || []).join('、')}</td>
-                            <td>${(data.tags || []).join('、')}</td>
-                            <td><span class="assigned-tag">${data.preferredStylist || "待指定"}</span></td>
-                            <td>
-                                <select class="assign-select" onchange="window.dispatchModule.assignStylist('${d.id}', this.value)">
-                                    <option value="">請選擇...</option>
-                                    ${staffs.map(s => `<option value="${s}">${s} (待:${this.staffLoad[s]?.pending || 0}/完:${this.staffLoad[s]?.done || 0})</option>`).join('')}
-                                </select>
-                            </td>
-                        </tr>
-                    `;
-                });
+                        body.innerHTML += `
+                            <tr class="${urgentClass}">
+                                <td>${data.bookDate}</td>
+                                <td>${data.bookSlot}</td>
+                                <td><strong>${data.room}</strong></td>
+                                <td>${data.gender}</td>
+                                <td>${data.phone}</td>
+                                <td>${(data.services || []).join('、')}</td>
+                                <td>${(data.tags || []).join('、')}</td>
+                                <td><span class="assigned-tag">${data.preferredStylist || "待指定"}</span></td>
+                                <td>
+                                    <select class="assign-select" onchange="window.dispatchModule.assignStylist('${d.id}', this.value)">
+                                        <option value="">請選擇...</option>
+                                        ${staffs.map(s => `<option value="${s}">${s} (待:${this.staffLoad[s]?.pending || 0}/完:${this.staffLoad[s]?.done || 0})</option>`).join('')}
+                                    </select>
+                                </td>
+                            </tr>
+                        `;
+                    });
+                }
             }, (error) => {
                 console.error("監聽待派遣失敗:", error);
-                document.getElementById('pendingTableBody').innerHTML = '<tr><td colspan="9" class="empty-text">監聽失敗，請檢查網路連線</td></tr>';
+                document.getElementById('pendingTableBody').innerHTML = '<tr><td colspan="9" class="empty-row">監聽失敗，請檢查網路連線</td></tr>';
             });
         },
 
@@ -199,36 +224,97 @@
                 const compBody = document.getElementById('completedTableBody');
                 const summaryBody = document.getElementById('summaryBody');
                 const personalBody = document.getElementById('personalStatsBody');
-                compBody.innerHTML = '';
                 
+                // 初始化統計數據
                 let counts = { "剪髮": 0, "理髮(手術用)": 0, "洗髮": 0, "染髮": 0 };
                 let person = {}; 
                 this.staffLoad = {};
+                let completedCount = 0;
 
+                // 遍歷所有訂單
                 snap.forEach(d => {
                     const data = d.data();
                     const sName = data.stylistName;
+                    
+                    // 更新人員負載統計
                     if(sName) {
                         if(!this.staffLoad[sName]) this.staffLoad[sName] = { pending: 0, done: 0 };
                         data.status < 3 ? this.staffLoad[sName].pending++ : this.staffLoad[sName].done++;
                     }
 
+                    // 只統計已完成的訂單 (status === 3)
                     if(data.status === 3) {
-                        compBody.innerHTML += `<tr><td>${data.bookDate}</td><td>${data.bookSlot}</td><td>${data.room}</td><td>${data.gender}</td><td>${data.phone}</td><td>${(data.services || []).join('、')}</td><td>${(data.tags || []).join('、')}</td><td>${data.preferredStylist ? '★' : ''}${sName}</td></tr>`;
+                        completedCount++;
+                        compBody.innerHTML += `
+                            <tr>
+                                <td>${data.bookDate}</td>
+                                <td>${data.bookSlot}</td>
+                                <td>${data.room}</td>
+                                <td>${data.gender}</td>
+                                <td>${data.phone}</td>
+                                <td>${(data.services || []).join('、')}</td>
+                                <td>${(data.tags || []).join('、')}</td>
+                                <td>${data.preferredStylist ? '★' : ''}${sName || '未指派'}</td>
+                            </tr>
+                        `;
+                        
+                        // 統計服務項目
                         (data.services || []).forEach(s => {
                             if(counts.hasOwnProperty(s)) counts[s]++;
+                            
+                            // 統計個人服務量
                             if(sName) {
                                 if(!person[sName]) person[sName] = { "剪髮": 0, "理髮(手術用)": 0, "洗髮": 0, "染髮": 0, total: 0 };
-                                if(person[sName].hasOwnProperty(s)) { person[sName][s]++; person[sName].total++; }
+                                if(person[sName].hasOwnProperty(s)) { 
+                                    person[sName][s]++; 
+                                    person[sName].total++; 
+                                }
                             }
                         });
                     }
                 });
+
+                // 如果沒有已完成的訂單，顯示空狀態
+                if (completedCount === 0) {
+                    compBody.innerHTML = '<tr><td colspan="8" class="empty-row">今日暫無已完成訂單</td></tr>';
+                }
                 
-                summaryBody.innerHTML = Object.entries(counts).map(([k,v])=>`<tr><td>${k}</td><td>${v} 件</td></tr>`).join('') + `<tr style="font-weight:bold; background:#fefce8;"><td>總計</td><td>${Object.values(counts).reduce((a,b)=>a+b,0)} 件</td></tr>`;
-                personalBody.innerHTML = Object.entries(person).map(([name, s])=>`<tr><td><strong>${name}</strong></td><td>${s["剪髮"]}</td><td>${s["理髮(手術用)"]}</td><td>${s["洗髮"]}</td><td>${s["染髮"]}</td><td style="font-weight:bold; color:var(--primary);">${s.total}</td></tr>`).join('');
+                // 更新本日服務量小計
+                const totalServices = Object.values(counts).reduce((a,b)=>a+b,0);
+                summaryBody.innerHTML = Object.entries(counts)
+                    .map(([k,v])=>`<tr><td>${k}</td><td>${v} 件</td></tr>`)
+                    .join('') + 
+                    `<tr style="font-weight:bold; background:#fefce8;"><td>總計</td><td>${totalServices} 件</td></tr>`;
+                
+                // 如果沒有統計數據，顯示空狀態
+                if (totalServices === 0) {
+                    summaryBody.innerHTML = '<tr><td colspan="2" class="empty-row">今日暫無已完成服務</td></tr>';
+                }
+                
+                // 更新個人服務量統計
+                if (Object.keys(person).length === 0) {
+                    personalBody.innerHTML = '<tr><td colspan="6" class="empty-row">今日暫無個人統計數據</td></tr>';
+                } else {
+                    personalBody.innerHTML = Object.entries(person)
+                        .map(([name, s])=>`
+                            <tr>
+                                <td><strong>${name}</strong></td>
+                                <td>${s["剪髮"]}</td>
+                                <td>${s["理髮(手術用)"]}</td>
+                                <td>${s["洗髮"]}</td>
+                                <td>${s["染髮"]}</td>
+                                <td style="font-weight:bold; color:var(--primary);">${s.total}</td>
+                            </tr>
+                        `)
+                        .join('');
+                }
+
+                console.log("統計更新完成 - 已完成:", completedCount, "人員負載:", this.staffLoad);
             }, (error) => {
                 console.error("監聽統計失敗:", error);
+                document.getElementById('summaryBody').innerHTML = '<tr><td colspan="2" class="empty-row">監聽失敗</td></tr>';
+                document.getElementById('personalStatsBody').innerHTML = '<tr><td colspan="6" class="empty-row">監聽失敗</td></tr>';
+                document.getElementById('completedTableBody').innerHTML = '<tr><td colspan="8" class="empty-row">監聽失敗</td></tr>';
             });
         },
 
@@ -240,7 +326,7 @@
                     stylistName: name, 
                     dispatchedAt: serverTimestamp() 
                 });
-                alert("指派成功！");
+                console.log(`訂單 ${id} 已指派給 ${name}`);
             } catch (error) {
                 console.error("指派失敗:", error);
                 alert("指派失敗，請稍後再試");
