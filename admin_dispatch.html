@@ -28,6 +28,8 @@
         .urgent-row { background: #fff5f5; border-left: 5px solid var(--urgent) !important; }
         
         .empty-row { text-align: center; color: #94a3b8; padding: 20px; font-style: italic; }
+        
+        .current-stylist { color: #10b981; font-weight: 700; }
     </style>
 </head>
 <body>
@@ -286,6 +288,10 @@
                             ? (this.webConfig?.[`day${dayIndex}`]?.amStaffs || []) 
                             : (this.webConfig?.[`day${dayIndex}`]?.pmStaffs || []);
 
+                        // 【修復】保留原有指派的美髮師，並在下拉選單中預選
+                        const currentStylist = data.stylistName || '';
+                        const stylistDisplay = currentStylist ? `<span class="current-stylist">${currentStylist}</span>` : '未指派';
+
                         body.innerHTML += `
                             <tr class="${urgentClass}">
                                 <td>${data.bookDate}</td>
@@ -299,8 +305,12 @@
                                 <td>
                                     <select class="assign-select" onchange="window.dispatchModule.assignStylist('${d.id}', this.value)">
                                         <option value="">請選擇...</option>
-                                        ${staffs.map(s => `<option value="${s}">${s} (待:${this.staffLoad[s]?.pending || 0}/完:${this.staffLoad[s]?.done || 0})</option>`).join('')}
+                                        ${staffs.map(s => {
+                                            const isSelected = s === currentStylist ? 'selected' : '';
+                                            return `<option value="${s}" ${isSelected}>${s} (待:${this.staffLoad[s]?.pending || 0}/完:${this.staffLoad[s]?.done || 0})</option>`;
+                                        }).join('')}
                                     </select>
+                                    <div style="margin-top: 4px; font-size: 0.8rem; color: #64748b;">目前: ${stylistDisplay}</div>
                                 </td>
                             </tr>
                         `;
