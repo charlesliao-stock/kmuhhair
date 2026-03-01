@@ -13,43 +13,430 @@
             --cancelled: #ef4444;
             --waiting: #6366f1;
         }
-        .stylist-container { padding: 15px; max-width: 1200px; margin: 0 auto; }
-        .nav-tabs { display: flex; gap: 10px; margin-bottom: 20px; border-bottom: 2px solid #e2e8f0; padding-bottom: 10px; overflow-x: auto; }
-        .nav-tab { padding: 10px 20px; border-radius: 8px; cursor: pointer; font-weight: 600; color: #64748b; white-space: nowrap; }
-        .nav-tab.active { background: var(--primary); color: white; }
         
-        .task-card { background: white; border-radius: 12px; padding: 15px; margin-bottom: 15px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); border-left: 5px solid #cbd5e1; }
+        /* ===== 基礎容器樣式 ===== */
+        .stylist-container { 
+            padding: 15px; 
+            max-width: 1200px; 
+            margin: 0 auto; 
+        }
+        
+        /* ===== Header 樣式 (RWD) ===== */
+        .admin-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+        
+        .admin-header h2 {
+            margin: 0;
+            font-size: clamp(1.2rem, 5vw, 1.8rem);
+        }
+        
+        .admin-header p {
+            margin: 5px 0 0 0;
+            font-size: clamp(0.75rem, 2vw, 0.9rem);
+        }
+        
+        /* ===== 導航頁籤 (RWD) ===== */
+        .nav-tabs { 
+            display: flex; 
+            gap: 10px; 
+            margin-bottom: 20px; 
+            border-bottom: 2px solid #e2e8f0; 
+            padding-bottom: 10px; 
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+        
+        .nav-tab { 
+            padding: 10px 15px; 
+            border-radius: 8px; 
+            cursor: pointer; 
+            font-weight: 600; 
+            color: #64748b; 
+            white-space: nowrap; 
+            font-size: clamp(0.8rem, 2vw, 1rem);
+            transition: all 0.2s ease;
+        }
+        
+        .nav-tab.active { 
+            background: var(--primary); 
+            color: white; 
+        }
+        
+        /* ===== 任務卡片 (RWD) ===== */
+        .task-card { 
+            background: white; 
+            border-radius: 12px; 
+            padding: 15px; 
+            margin-bottom: 15px; 
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05); 
+            border-left: 5px solid #cbd5e1; 
+        }
+        
         .task-card.status-1 { border-left-color: var(--pending); }
         .task-card.status-2 { border-left-color: var(--waiting); }
         .task-card.status-3 { border-left-color: var(--completed); }
         .task-card.status-4 { border-left-color: var(--cancelled); }
         .task-card.urgent { background: #fff5f5; border-left-color: #ef4444; }
         
-        .task-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px; }
-        .task-room { font-size: 1.2rem; font-weight: 800; color: #1e293b; }
-        .task-badge { font-size: 0.75rem; padding: 3px 8px; border-radius: 4px; color: white; font-weight: bold; }
+        /* ===== 任務卡片頭部 (RWD) ===== */
+        .task-header { 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: flex-start; 
+            margin-bottom: 10px; 
+            flex-wrap: wrap;
+            gap: 10px;
+        }
         
-        .task-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 0.9rem; color: #475569; }
-        .task-item { margin-bottom: 4px; }
-        .task-label { font-weight: 600; color: #64748b; margin-right: 5px; }
+        .task-room { 
+            font-size: clamp(1rem, 4vw, 1.2rem); 
+            font-weight: 800; 
+            color: #1e293b; 
+        }
         
-        .task-actions { display: flex; gap: 8px; margin-top: 15px; flex-wrap: wrap; }
-        .btn-action { flex: 1; padding: 10px; border-radius: 8px; border: none; font-weight: bold; cursor: pointer; min-width: 80px; }
+        .task-badge { 
+            font-size: clamp(0.65rem, 2vw, 0.75rem); 
+            padding: 3px 8px; 
+            border-radius: 4px; 
+            color: white; 
+            font-weight: bold; 
+        }
+        
+        /* ===== 任務資訊網格 (RWD) ===== */
+        .task-grid { 
+            display: grid; 
+            grid-template-columns: 1fr 1fr; 
+            gap: 8px; 
+            font-size: clamp(0.8rem, 2vw, 0.9rem); 
+            color: #475569; 
+        }
+        
+        .task-item { 
+            margin-bottom: 4px; 
+            word-break: break-word;
+        }
+        
+        .task-label { 
+            font-weight: 600; 
+            color: #64748b; 
+            margin-right: 5px; 
+        }
+        
+        /* ===== 任務操作按鈕 (RWD) ===== */
+        .task-actions { 
+            display: flex; 
+            gap: 8px; 
+            margin-top: 15px; 
+            flex-wrap: wrap; 
+        }
+        
+        .btn-action { 
+            flex: 1; 
+            min-width: 70px;
+            padding: 10px 8px; 
+            border-radius: 8px; 
+            border: none; 
+            font-weight: bold; 
+            cursor: pointer; 
+            font-size: clamp(0.75rem, 2vw, 0.9rem);
+            transition: all 0.2s ease;
+        }
+        
         .btn-finish { background: var(--completed); color: white; }
         .btn-wait { background: var(--waiting); color: white; }
         .btn-cancel { background: var(--cancelled); color: white; }
         
-        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center; }
-        .modal-content { background: white; padding: 20px; border-radius: 12px; width: 90%; max-width: 400px; }
-        .reason-list { display: flex; flex-direction: column; gap: 10px; margin-top: 15px; }
-        .btn-reason { padding: 12px; border: 1px solid #e2e8f0; border-radius: 8px; background: white; cursor: pointer; text-align: left; }
-        .btn-reason:hover { background: #f8fafc; border-color: var(--primary); }
-
-        .stats-section { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
-        .chart-container { margin-top: 20px; height: 300px; }
-        .empty-state { text-align: center; color: #94a3b8; padding: 40px 20px; font-style: italic; }
+        .btn-action:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
         
-        #notification-banner { display: none; background: #fef3c7; color: #92400e; padding: 10px; text-align: center; font-weight: bold; position: sticky; top: 0; z-index: 100; border-bottom: 1px solid #fde68a; }
+        /* ===== Modal 樣式 (RWD) ===== */
+        .modal { 
+            display: none; 
+            position: fixed; 
+            top: 0; 
+            left: 0; 
+            width: 100%; 
+            height: 100%; 
+            background: rgba(0,0,0,0.5); 
+            z-index: 1000; 
+            align-items: center; 
+            justify-content: center; 
+            padding: 15px;
+        }
+        
+        .modal-content { 
+            background: white; 
+            padding: 20px; 
+            border-radius: 12px; 
+            width: 100%;
+            max-width: 400px; 
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+        
+        .reason-list { 
+            display: flex; 
+            flex-direction: column; 
+            gap: 10px; 
+            margin-top: 15px; 
+        }
+        
+        .btn-reason { 
+            padding: 12px; 
+            border: 1px solid #e2e8f0; 
+            border-radius: 8px; 
+            background: white; 
+            cursor: pointer; 
+            text-align: left; 
+            font-size: clamp(0.8rem, 2vw, 0.9rem);
+            transition: all 0.2s ease;
+        }
+        
+        .btn-reason:hover { 
+            background: #f8fafc; 
+            border-color: var(--primary); 
+        }
+
+        /* ===== 統計區段 (RWD) ===== */
+        .stats-section { 
+            background: white; 
+            padding: 20px; 
+            border-radius: 12px; 
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05); 
+        }
+        
+        .chart-container { 
+            margin-top: 20px; 
+            height: 300px; 
+            width: 100%;
+        }
+        
+        .empty-state { 
+            text-align: center; 
+            color: #94a3b8; 
+            padding: 40px 20px; 
+            font-style: italic; 
+        }
+        
+        /* ===== 通知橫幅 (RWD) ===== */
+        #notification-banner { 
+            display: none; 
+            background: #fef3c7; 
+            color: #92400e; 
+            padding: 10px 15px; 
+            text-align: center; 
+            font-weight: bold; 
+            position: sticky; 
+            top: 0; 
+            z-index: 100; 
+            border-bottom: 1px solid #fde68a; 
+            font-size: clamp(0.8rem, 2vw, 0.95rem);
+        }
+        
+        /* ===== 統計表格 (RWD) ===== */
+        .stats-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: clamp(0.8rem, 2vw, 0.9rem);
+        }
+        
+        .stats-table th,
+        .stats-table td {
+            padding: 8px;
+            text-align: left;
+        }
+        
+        /* ===== 響應式設計斷點 ===== */
+        
+        /* 平板設備 (768px 以下) */
+        @media (max-width: 768px) {
+            .stylist-container {
+                padding: 12px;
+            }
+            
+            .admin-header {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+            
+            .nav-tabs {
+                gap: 8px;
+                padding-bottom: 8px;
+            }
+            
+            .nav-tab {
+                padding: 8px 12px;
+            }
+            
+            .task-grid {
+                grid-template-columns: 1fr;
+                gap: 6px;
+            }
+            
+            .task-actions {
+                gap: 6px;
+            }
+            
+            .btn-action {
+                min-width: 60px;
+                padding: 8px 6px;
+            }
+            
+            .modal {
+                padding: 10px;
+            }
+            
+            .modal-content {
+                padding: 15px;
+            }
+            
+            .chart-container {
+                height: 250px;
+            }
+        }
+        
+        /* 手機設備 (480px 以下) */
+        @media (max-width: 480px) {
+            .stylist-container {
+                padding: 10px;
+            }
+            
+            .admin-header h2 {
+                font-size: 1.2rem;
+            }
+            
+            .admin-header p {
+                font-size: 0.75rem;
+            }
+            
+            .nav-tabs {
+                gap: 6px;
+                padding-bottom: 6px;
+                margin-bottom: 15px;
+            }
+            
+            .nav-tab {
+                padding: 8px 10px;
+                font-size: 0.8rem;
+            }
+            
+            .task-card {
+                padding: 12px;
+                margin-bottom: 12px;
+            }
+            
+            .task-header {
+                gap: 8px;
+                margin-bottom: 8px;
+            }
+            
+            .task-room {
+                font-size: 1rem;
+            }
+            
+            .task-badge {
+                font-size: 0.65rem;
+                padding: 2px 6px;
+            }
+            
+            .task-grid {
+                grid-template-columns: 1fr;
+                gap: 4px;
+                font-size: 0.8rem;
+            }
+            
+            .task-item {
+                margin-bottom: 2px;
+            }
+            
+            .task-actions {
+                gap: 4px;
+                margin-top: 12px;
+            }
+            
+            .btn-action {
+                flex: 1;
+                min-width: 50px;
+                padding: 8px 4px;
+                font-size: 0.75rem;
+            }
+            
+            .modal {
+                padding: 8px;
+            }
+            
+            .modal-content {
+                padding: 12px;
+                width: 100%;
+            }
+            
+            .reason-list {
+                gap: 8px;
+                margin-top: 12px;
+            }
+            
+            .btn-reason {
+                padding: 10px;
+                font-size: 0.8rem;
+            }
+            
+            .stats-section {
+                padding: 15px;
+            }
+            
+            .chart-container {
+                height: 200px;
+                margin-top: 15px;
+            }
+            
+            .stats-table {
+                font-size: 0.8rem;
+            }
+            
+            .stats-table th,
+            .stats-table td {
+                padding: 6px;
+            }
+            
+            #notification-banner {
+                padding: 8px 10px;
+                font-size: 0.8rem;
+            }
+        }
+        
+        /* 超小型設備 (320px 以下) */
+        @media (max-width: 320px) {
+            .stylist-container {
+                padding: 8px;
+            }
+            
+            .nav-tab {
+                padding: 6px 8px;
+                font-size: 0.75rem;
+            }
+            
+            .task-card {
+                padding: 10px;
+                margin-bottom: 10px;
+            }
+            
+            .btn-action {
+                min-width: 45px;
+                padding: 6px 3px;
+                font-size: 0.7rem;
+            }
+            
+            .chart-container {
+                height: 180px;
+            }
+        }
     </style>
 </head>
 <body>
@@ -102,9 +489,9 @@
                 </div>
                 <div class="form-group" id="customDateGroup" style="display:none;">
                     <label>起訖日期</label>
-                    <div style="display:flex; gap:10px;">
-                        <input type="date" id="startDate">
-                        <input type="date" id="endDate">
+                    <div style="display:flex; gap:10px; flex-wrap: wrap;">
+                        <input type="date" id="startDate" style="flex: 1; min-width: 120px;">
+                        <input type="date" id="endDate" style="flex: 1; min-width: 120px;">
                     </div>
                 </div>
                 <div class="form-group" style="display:flex; align-items:flex-end;">
