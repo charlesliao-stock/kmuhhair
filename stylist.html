@@ -471,7 +471,7 @@
                     <td>${(data.tags || []).join('、')} ${data.note || ''}</td>
                     <td><span class="status-badge status-${data.status}">${statusText}</span></td>
                     <td style="position: relative;">
-                        <button class="btn-action-main" onclick="togglePopover(event, '${d.id}')">操作</button>
+                        <button class="btn-action-main" onclick="toggleActionMenu(event, '${d.id}')">操作</button>
                         <div id="popover-${d.id}" class="action-popover">
                             <button class="btn-popover" style="background: var(--completed);" onclick="handleStatus('${d.id}', 3)">完工</button>
                             <button class="btn-popover" style="background: var(--waiting);" onclick="showReasonModal('${d.id}', 'wait')">待完工</button>
@@ -508,8 +508,8 @@
         });
     }
 
-    // 操作選單控制
-    window.togglePopover = (event, id) => {
+    // 操作選單控制 (改名為 toggleActionMenu，避免與瀏覽器原生 togglePopover API 衝突)
+    window.toggleActionMenu = (event, id) => {
         event.stopPropagation();
         const allPopovers = document.querySelectorAll('.action-popover');
         allPopovers.forEach(p => {
