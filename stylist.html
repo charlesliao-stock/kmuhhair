@@ -14,14 +14,12 @@
             --waiting: #6366f1;
         }
         
-        /* ===== 基礎容器樣式 ===== */
         .stylist-container { 
             padding: 15px; 
             max-width: 1200px; 
             margin: 0 auto; 
         }
         
-        /* ===== Header 樣式 (RWD) ===== */
         .admin-header {
             display: flex;
             justify-content: space-between;
@@ -41,7 +39,6 @@
             font-size: clamp(0.75rem, 2vw, 0.9rem);
         }
         
-        /* ===== 導航頁籤 (RWD) ===== */
         .nav-tabs { 
             display: flex; 
             gap: 10px; 
@@ -68,7 +65,6 @@
             color: white; 
         }
         
-        /* ===== 表格樣式 (比照 admin_dispatch.html) ===== */
         .table-container { 
             background: white; 
             border-radius: 12px; 
@@ -109,7 +105,6 @@
             font-style: italic; 
         }
 
-        /* ===== 任務狀態標籤 ===== */
         .status-badge { 
             font-size: 0.75rem; 
             padding: 3px 8px; 
@@ -123,7 +118,6 @@
         .status-3 { background: var(--completed); }
         .status-4 { background: var(--cancelled); }
 
-        /* ===== 操作按鈕樣式 ===== */
         .btn-action-main {
             background: var(--primary);
             color: white;
@@ -160,7 +154,6 @@
             color: white;
         }
 
-        /* ===== Modal 樣式 (RWD) ===== */
         .modal { 
             display: none; 
             position: fixed; 
@@ -208,7 +201,6 @@
             border-color: var(--primary); 
         }
 
-        /* ===== 統計區段 (RWD) ===== */
         .stats-section { 
             background: white; 
             padding: 20px; 
@@ -229,7 +221,6 @@
             font-style: italic; 
         }
         
-        /* ===== 通知橫幅 (RWD) ===== */
         #notification-banner { 
             display: none; 
             background: #fef3c7; 
@@ -244,7 +235,6 @@
             font-size: clamp(0.8rem, 2vw, 0.95rem);
         }
         
-        /* ===== 統計表格 (RWD) ===== */
         .stats-table {
             width: 100%;
             border-collapse: collapse;
@@ -257,7 +247,6 @@
             text-align: left;
         }
         
-        /* ===== 響應式設計斷點 ===== */
         @media (max-width: 768px) {
             .stylist-container { padding: 12px; }
             .admin-header { flex-direction: column; align-items: flex-start; }
@@ -283,8 +272,8 @@
     </header>
 
     <nav class="nav-tabs">
-        <div class="nav-tab active" onclick="switchTab('todo')">待完成派遣 (<span id="count-todo">0</span>)</div>
-        <div class="nav-tab" onclick="switchTab('done')">已完成派遣</div>
+        <div class="nav-tab active" onclick="switchTab('todo')"待完成派遣 (<span id="count-todo">0</span>)</div>
+        <div class="nav-tab" onclick="switchTab('done')">已完成派遣 (<span id="count-done">0</span>)</div>
         <div class="nav-tab" onclick="switchTab('stats')">統計查詢</div>
     </nav>
 
@@ -311,8 +300,8 @@
             <table class="dispatch-table">
                 <thead>
                     <tr>
-                        <th>日期</th><th>午別</th><th>床號</th><th>性別</th>
-                        <th>電話</th><th>服務項目</th><th>特殊需求</th><th>完成時間</th>
+                        <th>預約日期</th><th>午別</th><th>床號</th><th>性別</th>
+                        <th>電話</th><th>服務項目</th><th>特殊需求</th><th>完工時間</th>
                     </tr>
                 </thead>
                 <tbody id="doneList">
@@ -351,9 +340,7 @@
             <div class="chart-container">
                 <canvas id="personalChart"></canvas>
             </div>
-            <div id="statsDetail" style="margin-top: 20px;">
-                <!-- 詳細統計數據 -->
-            </div>
+            <div id="statsDetail" style="margin-top: 20px;"></div>
         </div>
     </div>
 </div>
@@ -380,7 +367,6 @@
     let lastOrderCount = -1;
     let myChart = null;
 
-    // 初始化
     onAuthStateChanged(auth, async (user) => {
         if (!user) {
             window.location.href = 'login.html';
@@ -409,6 +395,7 @@
     function initListeners(name) {
         if (!name) return;
         
+        // 待處理：status 1(待處理) 或 2(待完工)
         const qTodo = query(
             collection(db, "Orders"),
             where("stylistName", "==", name),
@@ -422,17 +409,17 @@
             updateNotification(snap.size);
         }, (err) => console.error("監聽待完成失敗:", err));
 
-        const todayStr = new Date().toLocaleDateString('sv-SE');
+        // 已完工：不限日期，查詢該美髮師全部 status==3 的訂單，依 bookDate 降冪排序
         const qDone = query(
             collection(db, "Orders"),
             where("stylistName", "==", name),
             where("status", "==", 3),
-            where("bookDate", "==", todayStr),
-            orderBy("completedAt", "desc")
+            orderBy("bookDate", "desc")
         );
 
         onSnapshot(qDone, (snap) => {
             renderDoneList(snap);
+            document.getElementById('count-done').innerText = snap.size;
         }, (err) => console.error("監聽已完成失敗:", err));
     }
 
@@ -486,13 +473,16 @@
     function renderDoneList(snap) {
         const body = document.getElementById('doneList');
         if (snap.empty) {
-            body.innerHTML = '<tr><td colspan="8" class="empty-row">今日尚無完工紀錄。</td></tr>';
+            body.innerHTML = '<tr><td colspan="8" class="empty-row">尚無完工紀錄。</td></tr>';
             return;
         }
 
         body.innerHTML = '';
         snap.forEach(d => {
             const data = d.data();
+            const completedTime = data.completedAt
+                ? data.completedAt.toDate().toLocaleString('zh-TW', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })
+                : '';
             body.innerHTML += `
                 <tr>
                     <td>${data.bookDate}</td>
@@ -502,7 +492,7 @@
                     <td>${data.phone}</td>
                     <td>${(data.services || []).join('、')}</td>
                     <td>${(data.tags || []).join('、')} ${data.note || ''}</td>
-                    <td>${data.completedAt?.toDate().toLocaleTimeString() || ''}</td>
+                    <td>${completedTime}</td>
                 </tr>
             `;
         });
@@ -519,7 +509,6 @@
         const popover = document.getElementById(`popover-${id}`);
         popover.style.display = (popover.style.display === 'flex') ? 'none' : 'flex';
         
-        // 點擊外部關閉
         const closeHandler = () => {
             popover.style.display = 'none';
             document.removeEventListener('click', closeHandler);
@@ -527,7 +516,6 @@
         document.addEventListener('click', closeHandler);
     };
 
-    // 狀態處理邏輯
     window.handleStatus = async (id, status, reason = "") => {
         if (status === 3 && !confirm("確定此任務已完工？")) return;
         
@@ -548,7 +536,6 @@
         }
     };
 
-    // Modal 控制
     let activeOrderId = null;
     window.showReasonModal = (id, type) => {
         activeOrderId = id;
@@ -577,7 +564,6 @@
         document.getElementById('statusModal').style.display = 'none';
     };
 
-    // 頁籤切換
     window.switchTab = (tab) => {
         document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
         document.querySelectorAll('.tab-content').forEach(c => c.style.display = 'none');
@@ -588,15 +574,12 @@
         if (tab === 'stats') updateStats();
     };
 
-    // 處理統計區間變更
     window.handleStatsRangeChange = () => {
         const range = document.getElementById('statsRange').value;
         document.getElementById('customDateGroup').style.display = (range === 'custom') ? 'block' : 'none';
     };
 
-    // 計算日期區間邏輯
     function getDateRange(range) {
-        const now = new Date();
         let start = new Date();
         let end = new Date();
         
@@ -630,7 +613,6 @@
         };
     }
 
-    // 統計功能
     window.updateStats = async () => {
         if (!currentStylistName) return;
         
